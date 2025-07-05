@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		495AAF1E2E1746A200EAF075 /* AudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = 495AAF1D2E1746A200EAF075 /* AudioKit */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXFileReference section */
 		495AAF0C2E173EED00EAF075 /* Cadence.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cadence.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -23,6 +27,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				495AAF1E2E1746A200EAF075 /* AudioKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -65,6 +70,7 @@
 			);
 			name = Cadence;
 			packageProductDependencies = (
+				495AAF1D2E1746A200EAF075 /* AudioKit */,
 			);
 			productName = Cadence;
 			productReference = 495AAF0C2E173EED00EAF075 /* Cadence.app */;
@@ -94,6 +100,9 @@
 			);
 			mainGroup = 495AAF032E173EED00EAF075;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				495AAF1C2E1746A200EAF075 /* XCRemoteSwiftPackageReference "AudioKit" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 495AAF0D2E173EED00EAF075 /* Products */;
 			projectDirPath = "";
@@ -324,6 +333,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		495AAF1C2E1746A200EAF075 /* XCRemoteSwiftPackageReference "AudioKit" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AudioKit/AudioKit.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.6.5;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		495AAF1D2E1746A200EAF075 /* AudioKit */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 495AAF1C2E1746A200EAF075 /* XCRemoteSwiftPackageReference "AudioKit" */;
+			productName = AudioKit;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 495AAF042E173EED00EAF075 /* Project object */;
 }
