@@ -72,4 +72,29 @@ class Metronome {
         sequencer.enableLooping()
         sequencer.setTempo(bpm)
     }
+    
+    // start and stop methods for the metronome
+    
+    func start() {
+        // temporary engine starting for testing later
+        do {
+            try engine.start()
+        } catch {
+            print("Error starting engine: \(error)")
+        }
+        
+        sequencer.play()
+        self.isRunning = true
+    }
+    
+    func stop() {
+        sequencer.stop()
+        sequencer.rewind()
+        
+        self.isRunning = false
+    // used until stopping the engine is built into the UI
+        engine.stop()
+    }
 }
+
+
