@@ -16,7 +16,13 @@ struct TimeSignature {
 
 class Metronome {
     var isRunning: Bool = false
-    var bpm: Double = 120
+    
+    var bpm: Double = 120 {
+        didSet {
+            sequencer.setTempo(bpm)
+        }
+    }
+    
     var timeSignature: TimeSignature = TimeSignature()
     
     let engine = AudioEngine()
