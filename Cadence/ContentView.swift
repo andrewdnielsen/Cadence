@@ -1,21 +1,28 @@
-//
-//  ContentView.swift
-//  Cadence
-//
-//  Created by Andrew Nielsen on 7/3/25.
-//
-
 import SwiftUI
+import AudioKit
+import AudioKitUI
 
 struct ContentView: View {
+    @StateObject var metronome = Metronome()
+    
     var body: some View {
         VStack {
-            Image(systemName: "globe")
-                .imageScale(.large)
-                .foregroundStyle(.tint)
-            Text("Hello, world!")
+            VStack() {
+                HStack {
+                    Button(action: {
+                        metronome.toggle()
+                    }) {
+                        Text(metronome.isPlaying ? "Stop" : "Start")
+                    }
+                    
+                }
+            }
+
+
         }
-        .padding()
+        .onDisappear {
+            metronome.stop()
+        }
     }
 }
 
