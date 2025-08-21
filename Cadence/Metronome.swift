@@ -86,7 +86,7 @@ class Metronome: ObservableObject, HasAudioEngine {
     private let beatNoteVelocity = 100.0
     
     /// The name of the custom sound file to look for.
-    private let soundResourceName = "click2.0"
+    private let soundResourceName = "click"
     
     /// The extension of the custom sound file.
     private let soundResourceExtension = "sf2"
