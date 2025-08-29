@@ -4,11 +4,11 @@
 //
 //  Created by Andrew Nielsen on 7/3/25.
 //
-
 import Foundation
 import AudioKit
 import AudioKitEX
 import SwiftUI
+import RiveRuntime
 
 /// A structure representing a musical time signature.
 struct TimeSignature {
@@ -39,19 +39,29 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// The sequencer that handles timing and playback.
     var sequencer = Sequencer()
     
+    /// The Rive view model for controlling animation
+    var riveViewModel: RiveViewModel?
+    
+    /// The instance for data-binding to the metronome stick's properties.
+    private var metStickInstance: RiveDataBindingViewModel.Instance?
+    
+    private let animationBaseBPM: Double = 120
+    
     // MARK: - Published Properties
     
     /// A boolean indicating whether the metronome is currently playing.
     @Published var isPlaying = false {
-        didSet {
-            if isPlaying {
-                sequencer.rewind()
-                sequencer.play()
-            } else {
-                sequencer.stop()
+            didSet {
+                if isPlaying {
+                    sequencer.play()
+                    riveViewModel?.play()
+                } else {
+                    sequencer.stop()
+                    riveViewModel?.pause()
+                }
+                updateAnimationSpeed()
             }
         }
-    }
     
     /// The tempo of the metronome in beats per minute (BPM).
     ///
@@ -59,6 +69,7 @@ class Metronome: ObservableObject, HasAudioEngine {
     @Published var tempo: BPM = 120 {
         didSet {
             sequencer.tempo = tempo
+            updateAnimationSpeed()
         }
     }
     
@@ -116,6 +127,48 @@ class Metronome: ObservableObject, HasAudioEngine {
         setupSampler()
         updateSequences()
     }
+    
+    // MARK: - Rive Animation Methods
+        
+    /// Sets the Rive view model for animation control
+    func setRiveViewModel(_ viewModel: RiveViewModel) {
+        self.riveViewModel = viewModel
+        guard let riveFile = viewModel.riveModel?.riveFile,
+                let metStickViewModel = riveFile.viewModelNamed("metStick"),
+                let instance = metStickViewModel.createDefaultInstance()
+        else {
+            print("❌ Error: Failed to set up Rive ViewModel instance.")
+            return
+        }
+
+        viewModel.riveModel?.stateMachine?.bind(viewModelInstance: instance)
+        self.metStickInstance = instance
+        print("✅ Rive instance set up and bound successfully.")
+
+        // Use pause() here to ensure the animation starts in a paused state.
+        self.riveViewModel?.pause()
+        updateAnimationSpeed()
+    }
+    /// Updates the animation speed based on current tempo
+    private func updateAnimationSpeed() {
+            guard let speedProperty = metStickInstance?.numberProperty(fromPath: "speed") else {
+                return
+            }
+            
+            // Check if the metronome should be playing
+            if isPlaying {
+                // If playing, calculate speed based on tempo
+                let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
+                speedProperty.value = speedMultiplier
+            } else {
+                // If not playing, the speed must be 0
+                speedProperty.value = 0
+            }
+            
+            // print("Animation speed set to: \(speedProperty.value)")
+        }
+    
+    
     
     // MARK: - Private Methods
     
