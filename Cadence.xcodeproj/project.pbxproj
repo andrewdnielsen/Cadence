@@ -7,16 +7,32 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		495603BB2E1A3DD600A8BF73 /* AudioKitEX in Frameworks */ = {isa = PBXBuildFile; productRef = 495603BA2E1A3DD600A8BF73 /* AudioKitEX */; };
 		495AAF1E2E1746A200EAF075 /* AudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = 495AAF1D2E1746A200EAF075 /* AudioKit */; };
+		49C43DB52E1B2297008472F7 /* AudioKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 49C43DB42E1B2297008472F7 /* AudioKitUI */; };
+		49D749782E57C81C00048B2C /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 49D749772E57C81C00048B2C /* RiveRuntime */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
 		495AAF0C2E173EED00EAF075 /* Cadence.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Cadence.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		497FDB362E1A005B0077AC0E /* Exceptions for "Cadence" folder in "Cadence" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 495AAF0B2E173EED00EAF075 /* Cadence */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		495AAF0E2E173EED00EAF075 /* Cadence */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				497FDB362E1A005B0077AC0E /* Exceptions for "Cadence" folder in "Cadence" target */,
+			);
 			path = Cadence;
 			sourceTree = "<group>";
 		};
@@ -28,6 +44,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				495AAF1E2E1746A200EAF075 /* AudioKit in Frameworks */,
+				49D749782E57C81C00048B2C /* RiveRuntime in Frameworks */,
+				49C43DB52E1B2297008472F7 /* AudioKitUI in Frameworks */,
+				495603BB2E1A3DD600A8BF73 /* AudioKitEX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -71,6 +90,9 @@
 			name = Cadence;
 			packageProductDependencies = (
 				495AAF1D2E1746A200EAF075 /* AudioKit */,
+				495603BA2E1A3DD600A8BF73 /* AudioKitEX */,
+				49C43DB42E1B2297008472F7 /* AudioKitUI */,
+				49D749772E57C81C00048B2C /* RiveRuntime */,
 			);
 			productName = Cadence;
 			productReference = 495AAF0C2E173EED00EAF075 /* Cadence.app */;
@@ -102,6 +124,9 @@
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
 				495AAF1C2E1746A200EAF075 /* XCRemoteSwiftPackageReference "AudioKit" */,
+				495603B92E1A3DD600A8BF73 /* XCRemoteSwiftPackageReference "AudioKitEX" */,
+				49C43DB32E1B2297008472F7 /* XCRemoteSwiftPackageReference "AudioKitUI" */,
+				49D749762E57C81C00048B2C /* XCRemoteSwiftPackageReference "rive-ios" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 495AAF0D2E173EED00EAF075 /* Products */;
@@ -260,11 +285,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Cadence/Cadence.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 33LYJR835C;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Cadence/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -288,11 +315,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = Cadence/Cadence.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = 33LYJR835C;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Cadence/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -335,6 +364,14 @@
 /* End XCConfigurationList section */
 
 /* Begin XCRemoteSwiftPackageReference section */
+		495603B92E1A3DD600A8BF73 /* XCRemoteSwiftPackageReference "AudioKitEX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AudioKit/AudioKitEX.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 5.6.2;
+			};
+		};
 		495AAF1C2E1746A200EAF075 /* XCRemoteSwiftPackageReference "AudioKit" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/AudioKit/AudioKit.git";
@@ -343,13 +380,44 @@
 				minimumVersion = 5.6.5;
 			};
 		};
+		49C43DB32E1B2297008472F7 /* XCRemoteSwiftPackageReference "AudioKitUI" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/AudioKit/AudioKitUI.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.3.7;
+			};
+		};
+		49D749762E57C81C00048B2C /* XCRemoteSwiftPackageReference "rive-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/rive-app/rive-ios";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.11.2;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		495603BA2E1A3DD600A8BF73 /* AudioKitEX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 495603B92E1A3DD600A8BF73 /* XCRemoteSwiftPackageReference "AudioKitEX" */;
+			productName = AudioKitEX;
+		};
 		495AAF1D2E1746A200EAF075 /* AudioKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 495AAF1C2E1746A200EAF075 /* XCRemoteSwiftPackageReference "AudioKit" */;
 			productName = AudioKit;
+		};
+		49C43DB42E1B2297008472F7 /* AudioKitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49C43DB32E1B2297008472F7 /* XCRemoteSwiftPackageReference "AudioKitUI" */;
+			productName = AudioKitUI;
+		};
+		49D749772E57C81C00048B2C /* RiveRuntime */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49D749762E57C81C00048B2C /* XCRemoteSwiftPackageReference "rive-ios" */;
+			productName = RiveRuntime;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

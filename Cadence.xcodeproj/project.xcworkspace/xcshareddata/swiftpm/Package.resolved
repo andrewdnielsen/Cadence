@@ -1,5 +1,5 @@
 {
-  "originHash" : "d488a1664a3e7fce5f3fd763113a88e32441ca9b4e481b45110972af6d297c7b",
+  "originHash" : "0b064ee266dcf5d1ccf704aa935adf9ffb3db551ecf7d3bb8850ce2256240582",
   "pins" : [
     {
       "identity" : "audiokit",
@@ -8,6 +8,42 @@
       "state" : {
         "revision" : "5b3fd238ef8ee95c9842ca4ea83ca58ee151e630",
         "version" : "5.6.5"
+      }
+    },
+    {
+      "identity" : "audiokitex",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AudioKit/AudioKitEX.git",
+      "state" : {
+        "revision" : "23e8e3bffd9fbc1dffa72f1d47c7f714dd777288",
+        "version" : "5.6.2"
+      }
+    },
+    {
+      "identity" : "audiokitui",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AudioKit/AudioKitUI.git",
+      "state" : {
+        "revision" : "1a61e8a96c7ee24c3e5abe06dc3334a31fd7571d",
+        "version" : "0.3.7"
+      }
+    },
+    {
+      "identity" : "controls",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/AudioKit/Controls.git",
+      "state" : {
+        "revision" : "4dd10370125af7f1e26d7a71b2c5929bb3c95087",
+        "version" : "1.1.4"
+      }
+    },
+    {
+      "identity" : "rive-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/rive-app/rive-ios",
+      "state" : {
+        "revision" : "6baeee45ad83d2c11ab5b95b10cbb9742edd1a3d",
+        "version" : "6.11.2"
       }
     }
   ],
