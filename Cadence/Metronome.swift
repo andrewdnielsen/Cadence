@@ -88,10 +88,10 @@ class Metronome: ObservableObject, HasAudioEngine {
     // MARK: - Private Properties
     
     /// The MIDI note number for the downbeat sound.
-    private let downbeatNoteNumber = MIDINoteNumber(60) // C4 for downbeat
-    
+    private let downbeatNoteNumber = MIDINoteNumber(72) // C5 for downbeat (octave higher)
+
     /// The MIDI note number for regular beats.
-    private let beatNoteNumber = MIDINoteNumber(60) // G4 for other beats
+    private let beatNoteNumber = MIDINoteNumber(60) // C4 for other beats
     
     /// The velocity for beat notes.
     private let beatNoteVelocity = 100.0
