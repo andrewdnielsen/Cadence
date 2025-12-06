@@ -27,8 +27,7 @@ struct ContentView: View {
                 // Swipeable content area
                 TabView {
                     // Basic view
-                    riveViewModel.view()
-                        .frame(width: 400, height: 400)
+                    BasicMetronomeView(riveViewModel: riveViewModel)
                 }
                 .frame(height: 400)
                 .tabViewStyle(.page)
