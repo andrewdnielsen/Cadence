@@ -18,7 +18,6 @@ struct TransportButton: View {
             metronome.toggle()
         }) {
             ZStack {
-                // Background solid circle
                 Circle()
                     .fill(Theme.Colors.primary)
                     .frame(width: 100, height: 100)
@@ -33,7 +32,7 @@ struct TransportButton: View {
                 Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
                     .font(.system(size: 40, weight: .bold))
                     .foregroundColor(.white)
-                    .offset(x: metronome.isPlaying ? 0 : 3) // Slight offset for play icon to center it visually
+                    .offset(x: metronome.isPlaying ? 0 : 3)
             }
             .scaleEffect(isPressed ? 0.9 : 1.0)
         }
