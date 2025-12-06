@@ -15,6 +15,7 @@ struct TempoControls: View {
     // Tempo range
     private let minTempo: Double = 10
     private let maxTempo: Double = 400
+    private let maxBPMDigits = 3  // Limit input to 3 digits (max is 400)
 
     // Inline editing state
     @State private var isEditingBPM = false
@@ -22,6 +23,8 @@ struct TempoControls: View {
     @State private var originalTempo: Double = 0
     @State private var showBorder = false
     @FocusState private var isBPMFocused: Bool
+    @State private var textSelection: TextSelection?
+    @State private var isCancelling = false
 
     var body: some View {
         VStack(spacing: Theme.Spacing.lg) {
@@ -39,7 +42,7 @@ struct TempoControls: View {
             ZStack {
                 if isEditingBPM {
                     // Inline editing TextField
-                    TextField("", text: $bpmText)
+                    TextField("", text: $bpmText, selection: $textSelection)
                         .font(.system(size: Theme.Typography.displayLarge, weight: .bold))
                         .foregroundColor(Theme.Colors.textPrimary)
                         .multilineTextAlignment(.center)
@@ -72,6 +75,12 @@ struct TempoControls: View {
                         .onSubmit {
                             finishEditing()
                         }
+                        .onChange(of: bpmText) { oldValue, newValue in
+                            // Limit input to maxBPMDigits characters
+                            if newValue.count > maxBPMDigits {
+                                bpmText = oldValue
+                            }
+                        }
                 } else {
                     // Normal BPM display
                     Text("\(Int(metronome.tempo))")
@@ -92,7 +101,7 @@ struct TempoControls: View {
                 .tracking(2)
         }
         .onChange(of: isBPMFocused) { _, newValue in
-            if !newValue && isEditingBPM {
+            if !newValue && isEditingBPM && !isCancelling {
                 finishEditing()
             }
         }
@@ -136,20 +145,35 @@ struct TempoControls: View {
         isEditingBPM = true
         showBorder = true
         isBPMFocused = true
+
+        // Auto-select all text after the field appears
+        DispatchQueue.main.async {
+            textSelection = TextSelection(range: bpmText.startIndex..<bpmText.endIndex)
+        }
     }
 
     /// Cancel editing and revert to original value
     private func cancelEditing() {
+        // Set cancelling flag to prevent onChange from calling finishEditing
+        isCancelling = true
+
         // Remove border immediately
         showBorder = false
 
         // Dismiss the keyboard
         isBPMFocused = false
 
+        // Clear text selection
+        textSelection = nil
+
+        // Revert to original tempo immediately
+        metronome.tempo = BPM(originalTempo)
+        bpmText = "\(Int(originalTempo))"
+
+        // Exit editing mode after keyboard animation completes (smooth transition)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             isEditingBPM = false
-            // Revert to original tempo
-            metronome.tempo = BPM(originalTempo)
+            isCancelling = false
         }
     }
 
@@ -160,6 +184,9 @@ struct TempoControls: View {
 
         // Dismiss the keyboard
         isBPMFocused = false
+
+        // Clear text selection
+        textSelection = nil
 
         // Try to parse the input
         guard let newBPM = Double(bpmText) else {
