@@ -14,28 +14,37 @@ struct ContentView: View {
             Theme.Colors.background
                 .ignoresSafeArea()
 
-            VStack(spacing: Theme.Spacing.sm) {
+            VStack(spacing: 0) {
                 // Top spacing
                 Spacer()
-                    .frame(height: Theme.Spacing.sm)
+                    .frame(height: Theme.Spacing.lg)
 
-                // Time signature control
-                TimeSignatureControl(metronome: metronome)
-                    .padding(.horizontal, Theme.Spacing.md)
-                    .transition(.scale.combined(with: .opacity))
+                // Time signature control - Hidden for now, will be used in advanced view
+                // TimeSignatureControl(metronome: metronome)
+                //     .padding(.horizontal, Theme.Spacing.md)
+                //     .transition(.scale.combined(with: .opacity))
 
-                // Rive metronome animation
-                riveViewModel.view()
-                    .frame(width: 350, height: 350)
+                // Swipeable content area
+                TabView {
+                    // Basic view
+                    riveViewModel.view()
+                        .frame(width: 400, height: 400)
+                }
+                .frame(height: 400)
+                .tabViewStyle(.page)
+                .indexViewStyle(.page(backgroundDisplayMode: .always))
+
+                Spacer()
+                    .frame(height: Theme.Spacing.md)
 
                 // Tempo controls
                 TempoControls(metronome: metronome)
                     .padding(.horizontal, Theme.Spacing.md)
 
                 Spacer()
-                    .frame(minHeight: Theme.Spacing.sm)
+                    .frame(height: Theme.Spacing.lg)
 
-                // Play/stop button at bottom
+                // Play/pause button
                 TransportButton(metronome: metronome)
                     .padding(.bottom, Theme.Spacing.md)
             }

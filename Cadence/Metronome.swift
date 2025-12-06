@@ -88,10 +88,10 @@ class Metronome: ObservableObject, HasAudioEngine {
     // MARK: - Private Properties
     
     /// The MIDI note number for the downbeat sound.
-    private let downbeatNoteNumber = MIDINoteNumber(72) // C5 for downbeat (octave higher)
+    private let downbeatNoteNumber = MIDINoteNumber(60)
 
     /// The MIDI note number for regular beats.
-    private let beatNoteNumber = MIDINoteNumber(60) // C4 for other beats
+    private let beatNoteNumber = MIDINoteNumber(60)
     
     /// The velocity for beat notes.
     private let beatNoteVelocity = 100.0
@@ -137,13 +137,13 @@ class Metronome: ObservableObject, HasAudioEngine {
                 let metStickViewModel = riveFile.viewModelNamed("metStick"),
                 let instance = metStickViewModel.createDefaultInstance()
         else {
-            print("❌ Error: Failed to set up Rive ViewModel instance.")
+            print("Error: Failed to set up Rive ViewModel instance.")
             return
         }
 
         viewModel.riveModel?.stateMachine?.bind(viewModelInstance: instance)
         self.metStickInstance = instance
-        print("✅ Rive instance set up and bound successfully.")
+        print("Rive instance set up and bound successfully.")
 
         // Use pause() here to ensure the animation starts in a paused state.
         self.riveViewModel?.pause()
