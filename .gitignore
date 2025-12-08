@@ -4,6 +4,9 @@
 # Created by https://www.toptal.com/developers/gitignore/api/swift,xcode
 #============================================================================
 
+# Claude
+CLAUDE.md
+
 # Xcode
 #
 # gitignore contributors: remember to update Global/Xcode.gitignore, Swift.gitignore & Objective-C.gitignore
