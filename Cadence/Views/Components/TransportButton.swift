@@ -14,14 +14,16 @@ struct TransportButton: View {
     @State private var isPressed = false
 
     var body: some View {
+        let buttonSize: CGFloat = 90
+        let iconSize: CGFloat = 36
+
         Button(action: {
             metronome.toggle()
         }) {
             ZStack {
-                // Background solid circle
                 Circle()
                     .fill(Theme.Colors.primary)
-                    .frame(width: 100, height: 100)
+                    .frame(width: buttonSize, height: buttonSize)
                     .shadow(
                         color: Theme.Colors.primary.opacity(0.5),
                         radius: Theme.Shadow.large.radius,
@@ -31,9 +33,9 @@ struct TransportButton: View {
 
                 // Icon
                 Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
-                    .font(.system(size: 40, weight: .bold))
+                    .font(.system(size: iconSize, weight: .bold))
                     .foregroundColor(.white)
-                    .offset(x: metronome.isPlaying ? 0 : 3) // Slight offset for play icon to center it visually
+                    .offset(x: metronome.isPlaying ? 0 : 3)
             }
             .scaleEffect(isPressed ? 0.9 : 1.0)
         }
@@ -54,6 +56,9 @@ struct TransportButton: View {
                 }
         )
         .animation(Theme.Animation.spring, value: metronome.isPlaying)
+        .accessibilityLabel(metronome.isPlaying ? "Stop" : "Play")
+        .accessibilityValue(metronome.isPlaying ? "Playing" : "Stopped")
+        .accessibilityHint("Double tap to toggle the metronome")
     }
 
 }
