@@ -53,13 +53,14 @@ class Metronome: ObservableObject, HasAudioEngine {
     @Published var isPlaying = false {
             didSet {
                 if isPlaying {
+                    updateAnimationSpeed()
                     sequencer.play()
                     riveViewModel?.play()
                 } else {
                     sequencer.stop()
                     riveViewModel?.pause()
+                    updateAnimationSpeed()
                 }
-                updateAnimationSpeed()
             }
         }
     
@@ -88,10 +89,10 @@ class Metronome: ObservableObject, HasAudioEngine {
     // MARK: - Private Properties
     
     /// The MIDI note number for the downbeat sound.
-    private let downbeatNoteNumber = MIDINoteNumber(72) // C5 for downbeat (octave higher)
+    private let downbeatNoteNumber = MIDINoteNumber(60)
 
     /// The MIDI note number for regular beats.
-    private let beatNoteNumber = MIDINoteNumber(60) // C4 for other beats
+    private let beatNoteNumber = MIDINoteNumber(60)
     
     /// The velocity for beat notes.
     private let beatNoteVelocity = 100.0
@@ -114,8 +115,9 @@ class Metronome: ObservableObject, HasAudioEngine {
         sequencer.addTrack(for: sampler)
         
         // Add callback track for beat tracking
-        callbackInst = CallbackInstrument(midiCallback: { _, beat, _ in
-            DispatchQueue.main.async { [unowned self] in
+        callbackInst = CallbackInstrument(midiCallback: { [weak self] _, beat, _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
                 self.currentBeat = Int(beat)
             }
         })
@@ -137,13 +139,13 @@ class Metronome: ObservableObject, HasAudioEngine {
                 let metStickViewModel = riveFile.viewModelNamed("metStick"),
                 let instance = metStickViewModel.createDefaultInstance()
         else {
-            print("❌ Error: Failed to set up Rive ViewModel instance.")
+            print("Error: Failed to set up Rive ViewModel instance.")
             return
         }
 
         viewModel.riveModel?.stateMachine?.bind(viewModelInstance: instance)
         self.metStickInstance = instance
-        print("✅ Rive instance set up and bound successfully.")
+        print("Rive instance set up and bound successfully.")
 
         // Use pause() here to ensure the animation starts in a paused state.
         self.riveViewModel?.pause()
@@ -277,6 +279,15 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// The audio engine is also stopped to conserve resources.
     func stop() {
         isPlaying = false
+
+        engine.stop()
+
+        for index in 0..<sequencer.tracks.count {
+            sequencer.tracks[index].clear()
+        }
+
+        // Rewind sequencer to beginning
+        sequencer.rewind()
     }
     
     /// Toggles the metronome playback state.
@@ -289,5 +300,15 @@ class Metronome: ObservableObject, HasAudioEngine {
         } else {
             start()
         }
+    }
+
+    /// Cleanup when Metronome is deallocated
+    deinit {
+        stop()
+
+        riveViewModel = nil
+        metStickInstance = nil
+
+        print("Metronome deallocated and cleaned up")
     }
 }

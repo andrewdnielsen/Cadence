@@ -1,6 +1,9 @@
 # Cadence iOS App - Git Ignore Rules
 # =============================================================================
 
+# Claude
+CLAUDE.md
+
 # macOS System Files
 # =============================================================================
 .DS_Store
@@ -78,7 +81,3 @@ exportOptions.plist
 *.gcda
 *.gcno
 *.profdata
-
-# Claude
-CLAUDE.md
-
