@@ -79,13 +79,18 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// Changing this will automatically update the sequence to match the new time signature.
     @Published var timeSignature: TimeSignature = TimeSignature() {
         didSet {
+            resetBeats()
             updateSequences()
         }
     }
     
     /// The current beat position (0-based) within the measure.
     @Published var currentBeat = 0
-    
+
+    /// Array tracking which beats are enabled (true) or disabled (false).
+    /// Index corresponds to beat number (0 = downbeat, 1 = beat 2, etc.)
+    @Published var beatsEnabled: [Bool] = []
+
     // MARK: - Private Properties
     
     /// The MIDI note number for the downbeat sound.
@@ -125,8 +130,9 @@ class Metronome: ObservableObject, HasAudioEngine {
         sequencer.addTrack(for: callbackInst)
         
         engine.output = sampler
-        
+
         setupSampler()
+        resetBeats()
         updateSequences()
     }
     
@@ -224,31 +230,34 @@ class Metronome: ObservableObject, HasAudioEngine {
     ///
     /// This method recreates the MIDI sequences for both the audio track and the
     /// callback track based on the current time signature settings.
+    /// Only enabled beats will produce sound.
     private func updateSequences() {
         // Update audio track
         var track = sequencer.tracks.first!
         track.length = Double(timeSignature.beats)
         track.clear()
-        
-        // Downbeat
-        track.sequence.add(noteNumber: downbeatNoteNumber,
-                          velocity: MIDIVelocity(Int(beatNoteVelocity)),
-                          position: 0.0,
-                          duration: 0.1)
-        
-        // Other beats
-        for beat in 1..<timeSignature.beats {
-            track.sequence.add(noteNumber: beatNoteNumber,
+
+        // Add notes only for enabled beats
+        for beat in 0..<timeSignature.beats {
+            // Skip if this beat is disabled
+            guard beat < beatsEnabled.count && beatsEnabled[beat] else {
+                continue
+            }
+
+            // Use downbeat note for first beat, regular note for others
+            let noteNumber = (beat == 0) ? downbeatNoteNumber : beatNoteNumber
+            track.sequence.add(noteNumber: noteNumber,
                               velocity: MIDIVelocity(Int(beatNoteVelocity)),
                               position: Double(beat),
                               duration: 0.1)
         }
-        
+
         // Update callback track for beat indication
+        // Callback track includes ALL beats (enabled and disabled) for visual tracking
         track = sequencer.tracks[1]
         track.length = Double(timeSignature.beats)
         track.clear()
-        
+
         for beat in 0..<timeSignature.beats {
             track.sequence.add(noteNumber: MIDINoteNumber(beat),
                               position: Double(beat),
@@ -300,6 +309,26 @@ class Metronome: ObservableObject, HasAudioEngine {
         } else {
             start()
         }
+    }
+
+    /// Resets all beats to enabled state based on current time signature.
+    ///
+    /// This is called automatically when the time signature changes,
+    /// but can also be called manually to re-enable all beats.
+    func resetBeats() {
+        beatsEnabled = Array(repeating: true, count: timeSignature.beats)
+    }
+
+    /// Toggles the enabled state of a specific beat.
+    ///
+    /// - Parameter index: The beat index to toggle (0-based, where 0 is the downbeat)
+    func toggleBeat(at index: Int) {
+        guard index >= 0 && index < beatsEnabled.count else {
+            print("Warning: Attempted to toggle beat at invalid index \(index)")
+            return
+        }
+        beatsEnabled[index].toggle()
+        updateSequences()
     }
 
     /// Cleanup when Metronome is deallocated
