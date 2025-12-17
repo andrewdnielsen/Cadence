@@ -7,48 +7,35 @@
 
 import SwiftUI
 
-/// Advanced metronome view with time signature control and beat tile visualization.
+/// Advanced metronome view showing time signature control and beat grid.
 ///
-/// This view provides detailed control for complex practice scenarios, including:
-/// - Time signature selection
-/// - Individual beat enable/disable via tiles
-/// - Visual beat tracking during playback
-/// - Full tempo controls
+/// This view is designed to be displayed in the TabView area, showing only the
+/// visualizer components without tempo controls or transport buttons (those are shared).
 struct AdvancedMetronomeView: View {
     @ObservedObject var metronome: Metronome
+    let availableWidth: CGFloat
+    let availableHeight: CGFloat
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: Theme.Spacing.md) {
-                // Top spacing
-                Spacer()
-                    .frame(height: Theme.Spacing.sm)
+        VStack(alignment: .center, spacing: 0) {
+            // Time signature control - pinned to top
+            TimeSignatureControl(metronome: metronome)
+                .padding(.horizontal, Theme.Spacing.md)
+                .padding(.top, Theme.Spacing.xs)
 
-                // Time signature control
-                TimeSignatureControl(metronome: metronome)
-                    .padding(.horizontal, Theme.Spacing.md)
+            Spacer()
+                .frame(height: Theme.Spacing.xl)
 
-                // Beat grid visualization
-                BeatGridView(
-                    metronome: metronome,
-                    availableWidth: geometry.size.width * 0.85
-                )
-                .padding(.vertical, Theme.Spacing.lg)
+            // Beat grid visualization - responsive sizing
+            BeatGridView(
+                metronome: metronome,
+                availableWidth: availableWidth,
+                availableHeight: availableHeight - 120 // Account for time signature control + spacing
+            )
 
-                Spacer()
-
-                // Tempo controls
-                TempoControls(metronome: metronome)
-                    .padding(.horizontal, Theme.Spacing.md)
-
-                Spacer()
-                    .frame(height: Theme.Spacing.lg)
-
-                // Play/stop button
-                TransportButton(metronome: metronome)
-                    .padding(.bottom, Theme.Spacing.md)
-            }
+            Spacer()
         }
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 }
 
@@ -59,25 +46,15 @@ struct AdvancedMetronomeView: View {
         Theme.Colors.background
             .ignoresSafeArea()
 
-        AdvancedMetronomeView(metronome: {
-            let m = Metronome()
-            m.timeSignature = TimeSignature(beats: 4, noteValue: 4)
-            return m
-        }())
-    }
-    .preferredColorScheme(.dark)
-}
-
-#Preview("6/8 Time Signature") {
-    ZStack {
-        Theme.Colors.background
-            .ignoresSafeArea()
-
-        AdvancedMetronomeView(metronome: {
-            let m = Metronome()
-            m.timeSignature = TimeSignature(beats: 6, noteValue: 8)
-            return m
-        }())
+        AdvancedMetronomeView(
+            metronome: {
+                let m = Metronome()
+                m.timeSignature = TimeSignature(beats: 4, noteValue: 4)
+                return m
+            }(),
+            availableWidth: 350,
+            availableHeight: 400
+        )
     }
     .preferredColorScheme(.dark)
 }
@@ -87,26 +64,15 @@ struct AdvancedMetronomeView: View {
         Theme.Colors.background
             .ignoresSafeArea()
 
-        AdvancedMetronomeView(metronome: {
-            let m = Metronome()
-            m.timeSignature = TimeSignature(beats: 12, noteValue: 8)
-            return m
-        }())
-    }
-    .preferredColorScheme(.dark)
-}
-
-#Preview("Playing State") {
-    ZStack {
-        Theme.Colors.background
-            .ignoresSafeArea()
-
-        AdvancedMetronomeView(metronome: {
-            let m = Metronome()
-            m.timeSignature = TimeSignature(beats: 4, noteValue: 4)
-            m.currentBeat = 2 // Simulate playing on beat 3
-            return m
-        }())
+        AdvancedMetronomeView(
+            metronome: {
+                let m = Metronome()
+                m.timeSignature = TimeSignature(beats: 12, noteValue: 8)
+                return m
+            }(),
+            availableWidth: 350,
+            availableHeight: 400
+        )
     }
     .preferredColorScheme(.dark)
 }

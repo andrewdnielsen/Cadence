@@ -7,6 +7,7 @@ struct ContentView: View {
     @StateObject var metronome = Metronome()
 
     @State private var riveViewModel = RiveViewModel(fileName: "test", autoPlay: false)
+    @State private var currentTab = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -18,22 +19,30 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     // Top spacing
                     Spacer()
-                        .frame(height: Theme.Spacing.lg)
-
-                    // Time signature control - Hidden for now, will be used in advanced view
-                    // TimeSignatureControl(metronome: metronome)
-                    //     .padding(.horizontal, Theme.Spacing.md)
-                    //     .transition(.scale.combined(with: .opacity))
+                        .frame(height: Theme.Spacing.xs)
 
                     // Swipeable content area - responsive height
-                    TabView {
-                        // Basic view
+                    let tabViewHeight = min(max(geometry.size.height * 0.55, 350), 520)
+
+                    TabView(selection: $currentTab) {
+                        // Basic metronome visualizer (page 0)
                         BasicMetronomeView(riveViewModel: riveViewModel)
+                            .tag(0)
+
+                        // Advanced metronome view (page 1)
+                        AdvancedMetronomeView(
+                            metronome: metronome,
+                            availableWidth: geometry.size.width * 0.85,
+                            availableHeight: tabViewHeight
+                        )
+                        .tag(1)
                     }
-                    .frame(height: min(max(geometry.size.height * 0.45, 280), 420))
+                    .frame(height: tabViewHeight)
                     .tabViewStyle(.page)
                     .indexViewStyle(.page(backgroundDisplayMode: .always))
+                    .animation(.easeInOut(duration: 0.3), value: currentTab)
 
+                    // Shared controls - visible for both views
                     Spacer()
                         .frame(height: Theme.Spacing.md)
 

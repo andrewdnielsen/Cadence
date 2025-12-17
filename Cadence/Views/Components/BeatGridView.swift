@@ -15,12 +15,13 @@ import SwiftUI
 struct BeatGridView: View {
     @ObservedObject var metronome: Metronome
     let availableWidth: CGFloat?
+    let availableHeight: CGFloat?
 
     var body: some View {
         let rows = buildBeatRows(for: metronome.timeSignature)
         let sizing = calculateSizing(beatCount: metronome.timeSignature.beats, rows: rows)
 
-        VStack(spacing: sizing.spacing) {
+        VStack(spacing: sizing.rowSpacing) {
             ForEach(Array(rows.enumerated()), id: \.offset) { rowIndex, beatIndices in
                 HStack(spacing: sizing.spacing) {
                     ForEach(beatIndices, id: \.self) { index in
@@ -87,25 +88,28 @@ struct BeatGridView: View {
         return rows
     }
 
-    /// Calculates tile size and spacing based on available width and beat layout
+    /// Calculates tile size and spacing based on available width/height and beat layout
     /// - Parameters:
     ///   - beatCount: Total number of beats
     ///   - rows: Array of beat rows from buildBeatRows()
-    /// - Returns: Sizing information for tiles and spacing
-    private func calculateSizing(beatCount: Int, rows: [[Int]]) -> (tileSize: CGFloat, spacing: CGFloat) {
+    /// - Returns: Sizing information for tiles, tile spacing, and row spacing
+    private func calculateSizing(beatCount: Int, rows: [[Int]]) -> (tileSize: CGFloat, spacing: CGFloat, rowSpacing: CGFloat) {
         // Default sizing
         let defaultTileSize: CGFloat = 60
         let defaultSpacing: CGFloat = 8
+        let defaultRowSpacing: CGFloat = 16
         let minimumTileSize: CGFloat = 40
         let minimumSpacing: CGFloat = 4
+        let minimumRowSpacing: CGFloat = 8
 
         // If no width constraint provided, use defaults
         guard let maxWidth = availableWidth else {
-            return (defaultTileSize, defaultSpacing)
+            return (defaultTileSize, defaultSpacing, defaultRowSpacing)
         }
 
         // Calculate the maximum beats in any single row
         let maxBeatsInRow = rows.map { $0.count }.max() ?? 1
+        let numRows = rows.count
 
         // Calculate required width at default size
         let horizontalPadding: CGFloat = Theme.Spacing.md * 2 // Left and right padding
@@ -114,14 +118,26 @@ struct BeatGridView: View {
         // Required width = (tiles × tileSize) + (gaps × spacing)
         let defaultRequiredWidth = CGFloat(maxBeatsInRow) * defaultTileSize + CGFloat(maxBeatsInRow - 1) * defaultSpacing
 
-        // Calculate scale factor
-        let scaleFactor = min(1.0, availableForGrid / defaultRequiredWidth)
+        // Calculate width scale factor
+        let widthScaleFactor = min(1.0, availableForGrid / defaultRequiredWidth)
+
+        // Calculate height scale factor if height is provided
+        var heightScaleFactor: CGFloat = 1.0
+        if let maxHeight = availableHeight, numRows > 1 {
+            // Required height = (tiles × tileSize) + (gaps × rowSpacing)
+            let defaultRequiredHeight = CGFloat(numRows) * defaultTileSize + CGFloat(numRows - 1) * defaultRowSpacing
+            heightScaleFactor = min(1.0, maxHeight / defaultRequiredHeight)
+        }
+
+        // Use the more restrictive scale factor
+        let scaleFactor = min(widthScaleFactor, heightScaleFactor)
 
         // Apply scaling with minimums
         let scaledTileSize = max(minimumTileSize, defaultTileSize * scaleFactor)
         let scaledSpacing = max(minimumSpacing, defaultSpacing * scaleFactor)
+        let scaledRowSpacing = max(minimumRowSpacing, defaultRowSpacing * scaleFactor)
 
-        return (scaledTileSize, scaledSpacing)
+        return (scaledTileSize, scaledSpacing, scaledRowSpacing)
     }
 }
 
@@ -145,7 +161,8 @@ struct BeatGridView: View {
                         m.timeSignature = TimeSignature(beats: 4, noteValue: 4)
                         return m
                     }(),
-                    availableWidth: geometry.size.width * 0.85
+                    availableWidth: geometry.size.width * 0.85,
+                    availableHeight: nil
                 )
             }
         }
@@ -171,7 +188,8 @@ struct BeatGridView: View {
                         m.timeSignature = TimeSignature(beats: 6, noteValue: 8)
                         return m
                     }(),
-                    availableWidth: geometry.size.width * 0.85
+                    availableWidth: geometry.size.width * 0.85,
+                    availableHeight: nil
                 )
             }
         }
@@ -197,7 +215,8 @@ struct BeatGridView: View {
                         m.timeSignature = TimeSignature(beats: 12, noteValue: 8)
                         return m
                     }(),
-                    availableWidth: geometry.size.width * 0.85
+                    availableWidth: geometry.size.width * 0.85,
+                    availableHeight: nil
                 )
             }
         }
