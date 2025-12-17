@@ -9,50 +9,52 @@ struct ContentView: View {
     @State private var riveViewModel = RiveViewModel(fileName: "test", autoPlay: false)
 
     var body: some View {
-        ZStack {
-            // Background
-            Theme.Colors.background
-                .ignoresSafeArea()
+        GeometryReader { geometry in
+            ZStack {
+                // Background
+                Theme.Colors.background
+                    .ignoresSafeArea()
 
-            VStack(spacing: 0) {
-                // Top spacing
-                Spacer()
-                    .frame(height: Theme.Spacing.lg)
+                VStack(spacing: 0) {
+                    // Top spacing
+                    Spacer()
+                        .frame(height: Theme.Spacing.lg)
 
-                // Time signature control - Hidden for now, will be used in advanced view
-                // TimeSignatureControl(metronome: metronome)
-                //     .padding(.horizontal, Theme.Spacing.md)
-                //     .transition(.scale.combined(with: .opacity))
+                    // Time signature control - Hidden for now, will be used in advanced view
+                    // TimeSignatureControl(metronome: metronome)
+                    //     .padding(.horizontal, Theme.Spacing.md)
+                    //     .transition(.scale.combined(with: .opacity))
 
-                // Swipeable content area
-                TabView {
-                    // Basic view
-                    BasicMetronomeView(riveViewModel: riveViewModel)
+                    // Swipeable content area - responsive height
+                    TabView {
+                        // Basic view
+                        BasicMetronomeView(riveViewModel: riveViewModel)
+                    }
+                    .frame(height: min(max(geometry.size.height * 0.45, 280), 420))
+                    .tabViewStyle(.page)
+                    .indexViewStyle(.page(backgroundDisplayMode: .always))
+
+                    Spacer()
+                        .frame(height: Theme.Spacing.md)
+
+                    // Tempo controls
+                    TempoControls(metronome: metronome)
+                        .padding(.horizontal, Theme.Spacing.md)
+
+                    Spacer()
+                        .frame(height: Theme.Spacing.lg)
+
+                    // Play/pause button
+                    TransportButton(metronome: metronome)
+                        .padding(.bottom, Theme.Spacing.md)
                 }
-                .frame(height: 400)
-                .tabViewStyle(.page)
-                .indexViewStyle(.page(backgroundDisplayMode: .always))
-
-                Spacer()
-                    .frame(height: Theme.Spacing.md)
-
-                // Tempo controls
-                TempoControls(metronome: metronome)
-                    .padding(.horizontal, Theme.Spacing.md)
-
-                Spacer()
-                    .frame(height: Theme.Spacing.lg)
-
-                // Play/pause button
-                TransportButton(metronome: metronome)
-                    .padding(.bottom, Theme.Spacing.md)
             }
-        }
-        .onAppear {
-            metronome.setRiveViewModel(riveViewModel)
-        }
-        .onDisappear {
-            metronome.stop()
+            .onAppear {
+                metronome.setRiveViewModel(riveViewModel)
+            }
+            .onDisappear {
+                metronome.stop()
+            }
         }
     }
 }

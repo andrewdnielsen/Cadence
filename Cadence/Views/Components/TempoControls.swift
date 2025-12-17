@@ -27,28 +27,32 @@ struct TempoControls: View {
     @State private var isCancelling = false
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.lg) {
-            // BPM display
-            bpmDisplay
+        GeometryReader { geometry in
+            VStack(spacing: Theme.Spacing.lg) {
+                // BPM display
+                bpmDisplay(availableWidth: geometry.size.width)
 
-            // Slider
-            tempoSlider
+                // Slider
+                tempoSlider
+            }
         }
     }
 
     /// BPM display with inline editing
-    private var bpmDisplay: some View {
-        VStack(spacing: Theme.Spacing.xs) {
+    private func bpmDisplay(availableWidth: CGFloat) -> some View {
+        let textFieldWidth = min(max(availableWidth * 0.35, 120), 200)
+
+        return VStack(spacing: Theme.Spacing.xs) {
             ZStack {
                 if isEditingBPM {
-                    // Inline editing TextField
+                    // Inline editing TextField - responsive width
                     TextField("", text: $bpmText, selection: $textSelection)
                         .font(.system(size: Theme.Typography.displayLarge, weight: .bold))
                         .foregroundColor(Theme.Colors.textPrimary)
                         .multilineTextAlignment(.center)
                         .keyboardType(.numberPad)
                         .focused($isBPMFocused)
-                        .frame(width: 150)
+                        .frame(width: textFieldWidth)
                         .padding(.vertical, 4)
                         .overlay(
                             Group {
@@ -81,6 +85,8 @@ struct TempoControls: View {
                                 bpmText = oldValue
                             }
                         }
+                        .accessibilityLabel("BPM")
+                        .accessibilityHint("Enter value between \(Int(minTempo)) and \(Int(maxTempo))")
                 } else {
                     // Normal BPM display
                     Text("\(Int(metronome.tempo))")
@@ -91,6 +97,10 @@ struct TempoControls: View {
                         .onTapGesture {
                             startEditing()
                         }
+                        .accessibilityLabel("Beats per minute")
+                        .accessibilityValue("\(Int(metronome.tempo))")
+                        .accessibilityHint("Double tap to edit")
+                        .accessibilityAddTraits(.isButton)
                 }
             }
             .frame(height: 80)
@@ -119,6 +129,9 @@ struct TempoControls: View {
                 step: 1
             )
             .accentColor(Theme.Colors.primary)
+            .accessibilityLabel("Tempo")
+            .accessibilityValue("\(Int(metronome.tempo)) BPM")
+            .accessibilityHint("Adjust from \(Int(minTempo)) to \(Int(maxTempo)) BPM")
 
             // Min/max labels
             HStack {
