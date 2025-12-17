@@ -1,64 +1,84 @@
-#============================================================================
-# Xcode
-#
-# Created by https://www.toptal.com/developers/gitignore/api/swift,xcode
-#============================================================================
+# Cadence iOS App - Git Ignore Rules
+# =============================================================================
 
-# Xcode
-#
-# gitignore contributors: remember to update Global/Xcode.gitignore, Swift.gitignore & Objective-C.gitignore
+# macOS System Files
+# =============================================================================
+.DS_Store
+.AppleDouble
+.LSOverride
+.Spotlight-V100
+.Trashes
+._*
 
-## User-specific files
-*.xcuserdatad
-*.user
-*.mode1v3
-*.mode2v3
-*.perspectivev3
-*.xcuserstate
-project.xcworkspace/
-xcuserdata/
+# Xcode - Build Products & User Data
+# =============================================================================
 
-## Build generated
+## Build Products
 build/
 DerivedData/
-*.hmap
 *.ipa
 *.dSYM.zip
 *.dSYM
+*.hmap
 
-## Various settings
+## User-Specific Data
+xcuserdata/
+*.xcuserdatad
+*.xcuserstate
+*.xcworkspace
+!*.xcworkspace/contents.xcworkspacedata
+!*.xcworkspace/xcshareddata/
+
+## User Settings
+*.mode1v3
+*.mode2v3
+*.perspectivev3
+*.pbxuser
+*.user
 *.moved-aside
-*~
 
-## Swift Package Manager
-#
-# Add this line if you want to avoid checking in source code from Swift Package Manager dependencies.
-# Packages/
-.build/
+## Temporary Files
+*~
 .swiftpm/
 
-# Carthage
-#
-# Add this line if you want to avoid checking in source code from Carthage dependencies.
-# Carthage/Checkouts
-Carthage/Build
+## IDE Workspace Checks
+IDEWorkspaceChecks.plist
 
-# Cocoapods
-#
-# Add this line if you want to avoid checking in source code from CocoaPods dependencies.
-# Pods/
-#
-# We recommend against adding the Pods directory to your .gitignore. However
-# you should judge for yourself, the pros and cons are mentioned at:
-# https://guides.cocoapods.org/using/using-cocoapods.html#should-i-check-the-pods-directory-into-source-control
+## Playgrounds
+timeline.xctimeline
+playground.xcworkspace
+
+## Source Control
+*.orig
+*.xccheckout
+*.xcscmblueprint
+
+# Swift Package Manager
+# =============================================================================
+.build/
+.swiftpm/
+Packages/
+# Note: Package.resolved is NOT ignored for apps (ensures consistent dependency versions)
 
 # fastlane
-#
-# It is recommended to not commit the screenshots, logs and reports folders.
-# However, it is recommended to commit the other fastlane files.
+# =============================================================================
 fastlane/report.xml
 fastlane/Preview.html
-fastlane/screenshots
+fastlane/screenshots/**/*.png
 fastlane/test_output
 
-# End of https://www.toptal.com/developers/gitignore/api/swift,xcode
+# App Packaging
+# =============================================================================
+*.mobileprovision
+*.p12
+exportOptions.plist
+
+# Code Coverage
+# =============================================================================
+*.gcda
+*.gcno
+*.profdata
+
+# Claude
+CLAUDE.md
+
