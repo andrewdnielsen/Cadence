@@ -54,6 +54,9 @@ struct ContentView: View {
             }
             .onDisappear {
                 metronome.stop()
+
+                // Clear Rive view model reference to prevent memory leaks
+                metronome.riveViewModel = nil
             }
         }
     }

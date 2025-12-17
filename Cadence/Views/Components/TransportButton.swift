@@ -14,55 +14,51 @@ struct TransportButton: View {
     @State private var isPressed = false
 
     var body: some View {
-        GeometryReader { geometry in
-            let buttonSize = min(max(80, geometry.size.width * 0.2), 100)
-            let iconSize = buttonSize * 0.4
+        let buttonSize: CGFloat = 90
+        let iconSize: CGFloat = 36
 
-            Button(action: {
-                metronome.toggle()
-            }) {
-                ZStack {
-                    Circle()
-                        .fill(Theme.Colors.primary)
-                        .frame(width: buttonSize, height: buttonSize)
-                        .shadow(
-                            color: Theme.Colors.primary.opacity(0.5),
-                            radius: Theme.Shadow.large.radius,
-                            x: Theme.Shadow.large.x,
-                            y: Theme.Shadow.large.y
-                        )
+        Button(action: {
+            metronome.toggle()
+        }) {
+            ZStack {
+                Circle()
+                    .fill(Theme.Colors.primary)
+                    .frame(width: buttonSize, height: buttonSize)
+                    .shadow(
+                        color: Theme.Colors.primary.opacity(0.5),
+                        radius: Theme.Shadow.large.radius,
+                        x: Theme.Shadow.large.x,
+                        y: Theme.Shadow.large.y
+                    )
 
-                    // Icon - scales with button size
-                    Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
-                        .font(.system(size: iconSize, weight: .bold))
-                        .foregroundColor(.white)
-                        .offset(x: metronome.isPlaying ? 0 : 3)
-                }
-                .scaleEffect(isPressed ? 0.9 : 1.0)
+                // Icon
+                Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
+                    .font(.system(size: iconSize, weight: .bold))
+                    .foregroundColor(.white)
+                    .offset(x: metronome.isPlaying ? 0 : 3)
             }
-            .buttonStyle(PlainButtonStyle())
-            .simultaneousGesture(
-                DragGesture(minimumDistance: 0)
-                    .onChanged { _ in
-                        if !isPressed {
-                            withAnimation(Theme.Animation.spring) {
-                                isPressed = true
-                            }
-                        }
-                    }
-                    .onEnded { _ in
-                        withAnimation(Theme.Animation.spring) {
-                            isPressed = false
-                        }
-                    }
-            )
-            .animation(Theme.Animation.spring, value: metronome.isPlaying)
-            .accessibilityLabel(metronome.isPlaying ? "Stop" : "Play")
-            .accessibilityValue(metronome.isPlaying ? "Playing" : "Stopped")
-            .accessibilityHint("Double tap to toggle the metronome")
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .scaleEffect(isPressed ? 0.9 : 1.0)
         }
-        .frame(height: 100)
+        .buttonStyle(PlainButtonStyle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        withAnimation(Theme.Animation.spring) {
+                            isPressed = true
+                        }
+                    }
+                }
+                .onEnded { _ in
+                    withAnimation(Theme.Animation.spring) {
+                        isPressed = false
+                    }
+                }
+        )
+        .animation(Theme.Animation.spring, value: metronome.isPlaying)
+        .accessibilityLabel(metronome.isPlaying ? "Stop" : "Play")
+        .accessibilityValue(metronome.isPlaying ? "Playing" : "Stopped")
+        .accessibilityHint("Double tap to toggle the metronome")
     }
 
 }

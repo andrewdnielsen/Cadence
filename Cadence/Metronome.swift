@@ -115,8 +115,9 @@ class Metronome: ObservableObject, HasAudioEngine {
         sequencer.addTrack(for: sampler)
         
         // Add callback track for beat tracking
-        callbackInst = CallbackInstrument(midiCallback: { _, beat, _ in
-            DispatchQueue.main.async { [unowned self] in
+        callbackInst = CallbackInstrument(midiCallback: { [weak self] _, beat, _ in
+            DispatchQueue.main.async {
+                guard let self = self else { return }
                 self.currentBeat = Int(beat)
             }
         })
@@ -278,6 +279,15 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// The audio engine is also stopped to conserve resources.
     func stop() {
         isPlaying = false
+
+        engine.stop()
+
+        for index in 0..<sequencer.tracks.count {
+            sequencer.tracks[index].clear()
+        }
+
+        // Rewind sequencer to beginning
+        sequencer.rewind()
     }
     
     /// Toggles the metronome playback state.
@@ -290,5 +300,15 @@ class Metronome: ObservableObject, HasAudioEngine {
         } else {
             start()
         }
+    }
+
+    /// Cleanup when Metronome is deallocated
+    deinit {
+        stop()
+
+        riveViewModel = nil
+        metStickInstance = nil
+
+        print("Metronome deallocated and cleaned up")
     }
 }

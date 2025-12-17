@@ -15,7 +15,7 @@ struct TempoControls: View {
     // Tempo range
     private let minTempo: Double = 10
     private let maxTempo: Double = 400
-    private let maxBPMDigits = 3  // Limit input to 3 digits (max is 400)
+    private let maxBPMDigits = 3
 
     // Inline editing state
     @State private var isEditingBPM = false
@@ -27,32 +27,28 @@ struct TempoControls: View {
     @State private var isCancelling = false
 
     var body: some View {
-        GeometryReader { geometry in
-            VStack(spacing: Theme.Spacing.lg) {
-                // BPM display
-                bpmDisplay(availableWidth: geometry.size.width)
+        VStack(spacing: Theme.Spacing.lg) {
+            // BPM display
+            bpmDisplay
 
-                // Slider
-                tempoSlider
-            }
+            // Slider
+            tempoSlider
         }
     }
 
     /// BPM display with inline editing
-    private func bpmDisplay(availableWidth: CGFloat) -> some View {
-        let textFieldWidth = min(max(availableWidth * 0.35, 120), 200)
-
-        return VStack(spacing: Theme.Spacing.xs) {
+    private var bpmDisplay: some View {
+        VStack(spacing: Theme.Spacing.xs) {
             ZStack {
                 if isEditingBPM {
-                    // Inline editing TextField - responsive width
+                    // Inline editing TextField
                     TextField("", text: $bpmText, selection: $textSelection)
                         .font(.system(size: Theme.Typography.displayLarge, weight: .bold))
                         .foregroundColor(Theme.Colors.textPrimary)
                         .multilineTextAlignment(.center)
                         .keyboardType(.numberPad)
                         .focused($isBPMFocused)
-                        .frame(width: textFieldWidth)
+                        .frame(minWidth: 120, maxWidth: 180)
                         .padding(.vertical, 4)
                         .overlay(
                             Group {
@@ -80,7 +76,6 @@ struct TempoControls: View {
                             finishEditing()
                         }
                         .onChange(of: bpmText) { oldValue, newValue in
-                            // Limit input to maxBPMDigits characters
                             if newValue.count > maxBPMDigits {
                                 bpmText = oldValue
                             }
