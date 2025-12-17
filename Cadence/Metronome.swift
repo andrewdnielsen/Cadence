@@ -53,13 +53,14 @@ class Metronome: ObservableObject, HasAudioEngine {
     @Published var isPlaying = false {
             didSet {
                 if isPlaying {
+                    updateAnimationSpeed()
                     sequencer.play()
                     riveViewModel?.play()
                 } else {
                     sequencer.stop()
                     riveViewModel?.pause()
+                    updateAnimationSpeed()
                 }
-                updateAnimationSpeed()
             }
         }
     
