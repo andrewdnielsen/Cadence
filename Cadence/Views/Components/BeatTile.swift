@@ -37,10 +37,9 @@ struct BeatTile: View {
             onToggle()
         }) {
             ZStack {
-                // Background circle
+                // Background circle (size controlled by parent via .frame modifier)
                 Circle()
                     .fill(tileColor)
-                    .frame(width: 60, height: 60)
                     .overlay(
                         Circle()
                             .strokeBorder(borderColor, lineWidth: isCurrent ? 3 : 0)

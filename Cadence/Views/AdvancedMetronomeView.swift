@@ -18,31 +18,36 @@ struct AdvancedMetronomeView: View {
     @ObservedObject var metronome: Metronome
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            // Top spacing
-            Spacer()
-                .frame(height: Theme.Spacing.sm)
+        GeometryReader { geometry in
+            VStack(spacing: Theme.Spacing.md) {
+                // Top spacing
+                Spacer()
+                    .frame(height: Theme.Spacing.sm)
 
-            // Time signature control
-            TimeSignatureControl(metronome: metronome)
-                .padding(.horizontal, Theme.Spacing.md)
+                // Time signature control
+                TimeSignatureControl(metronome: metronome)
+                    .padding(.horizontal, Theme.Spacing.md)
 
-            // Beat grid visualization
-            BeatGridView(metronome: metronome)
+                // Beat grid visualization
+                BeatGridView(
+                    metronome: metronome,
+                    availableWidth: geometry.size.width * 0.85
+                )
                 .padding(.vertical, Theme.Spacing.lg)
 
-            Spacer()
+                Spacer()
 
-            // Tempo controls
-            TempoControls(metronome: metronome)
-                .padding(.horizontal, Theme.Spacing.md)
+                // Tempo controls
+                TempoControls(metronome: metronome)
+                    .padding(.horizontal, Theme.Spacing.md)
 
-            Spacer()
-                .frame(height: Theme.Spacing.lg)
+                Spacer()
+                    .frame(height: Theme.Spacing.lg)
 
-            // Play/stop button
-            TransportButton(metronome: metronome)
-                .padding(.bottom, Theme.Spacing.md)
+                // Play/stop button
+                TransportButton(metronome: metronome)
+                    .padding(.bottom, Theme.Spacing.md)
+            }
         }
     }
 }
