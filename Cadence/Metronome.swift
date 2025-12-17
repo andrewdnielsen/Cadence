@@ -44,9 +44,15 @@ class Metronome: ObservableObject, HasAudioEngine {
     
     /// The instance for data-binding to the metronome stick's properties.
     private var metStickInstance: RiveDataBindingViewModel.Instance?
-    
+
     private let animationBaseBPM: Double = 120
-    
+
+    /// Timer for tracking beat position
+    private var beatTimer: Timer?
+
+    /// Track when playback started
+    private var playbackStartTime: Date?
+
     // MARK: - Published Properties
     
     /// A boolean indicating whether the metronome is currently playing.
@@ -120,10 +126,11 @@ class Metronome: ObservableObject, HasAudioEngine {
         sequencer.addTrack(for: sampler)
         
         // Add callback track for beat tracking
-        callbackInst = CallbackInstrument(midiCallback: { [weak self] _, beat, _ in
+        callbackInst = CallbackInstrument(midiCallback: { [weak self] noteNumber, velocity, _ in
             DispatchQueue.main.async {
                 guard let self = self else { return }
-                self.currentBeat = Int(beat)
+                self.currentBeat = Int(noteNumber)
+                print("Beat callback fired: noteNumber = \(noteNumber), velocity = \(velocity), currentBeat = \(self.currentBeat)")
             }
         })
         
@@ -159,21 +166,24 @@ class Metronome: ObservableObject, HasAudioEngine {
     }
     /// Updates the animation speed based on current tempo
     private func updateAnimationSpeed() {
+            print("updateAnimationSpeed called - tempo: \(tempo), isPlaying: \(isPlaying)")
+
             guard let speedProperty = metStickInstance?.numberProperty(fromPath: "speed") else {
+                print("ERROR: Failed to get speed property - metStickInstance is \(metStickInstance == nil ? "nil" : "not nil")")
                 return
             }
-            
+
             // Check if the metronome should be playing
             if isPlaying {
                 // If playing, calculate speed based on tempo
                 let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
                 speedProperty.value = speedMultiplier
+                print("Animation speed set to: \(speedProperty.value) (tempo: \(tempo), baseBPM: \(animationBaseBPM))")
             } else {
                 // If not playing, the speed must be 0
                 speedProperty.value = 0
+                print("Animation speed set to 0 (stopped)")
             }
-            
-            // print("Animation speed set to: \(speedProperty.value)")
         }
     
     
@@ -260,6 +270,7 @@ class Metronome: ObservableObject, HasAudioEngine {
 
         for beat in 0..<timeSignature.beats {
             track.sequence.add(noteNumber: MIDINoteNumber(beat),
+                              velocity: MIDIVelocity(100),
                               position: Double(beat),
                               duration: 0.1)
         }
@@ -277,6 +288,29 @@ class Metronome: ObservableObject, HasAudioEngine {
                 try engine.start()
             }
             isPlaying = true
+
+            // Track when playback started
+            playbackStartTime = Date()
+
+            // Start timer to track beat position
+            beatTimer?.invalidate()
+            beatTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
+                guard let self = self, self.isPlaying, let startTime = self.playbackStartTime else { return }
+
+                // Calculate elapsed time in seconds
+                let elapsedTime = Date().timeIntervalSince(startTime)
+
+                // Calculate current beat based on tempo and elapsed time
+                // beatsElapsed = (seconds * BPM) / 60
+                let beatsElapsed = (elapsedTime * Double(self.tempo)) / 60.0
+                let beat = Int(beatsElapsed) % self.timeSignature.beats
+
+                DispatchQueue.main.async {
+                    if self.currentBeat != beat {
+                        self.currentBeat = beat
+                    }
+                }
+            }
         } catch {
             print("Error starting metronome: \(error)")
         }
@@ -285,18 +319,22 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// Stops the metronome playback.
     ///
     /// This method stops the sequencer and rewinds it to the beginning.
-    /// The audio engine is also stopped to conserve resources.
     func stop() {
         isPlaying = false
 
-        engine.stop()
-
-        for index in 0..<sequencer.tracks.count {
-            sequencer.tracks[index].clear()
-        }
+        // Stop beat tracking timer
+        beatTimer?.invalidate()
+        beatTimer = nil
+        playbackStartTime = nil
 
         // Rewind sequencer to beginning
         sequencer.rewind()
+
+        // Reset current beat to 0
+        currentBeat = 0
+
+        // Reset Rive animation to beginning
+        riveViewModel?.reset()
     }
     
     /// Toggles the metronome playback state.

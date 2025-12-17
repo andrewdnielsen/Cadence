@@ -31,6 +31,8 @@ struct TimeSignatureControl: View {
                     Text("Beats")
                         .font(.system(size: Theme.Typography.caption, weight: .medium))
                         .foregroundColor(Theme.Colors.textSecondary)
+                        .fixedSize()
+                        .layoutPriority(1)
 
                     Picker("Beats", selection: $metronome.timeSignature.beats) {
                         ForEach(beatOptions, id: \.self) { beats in
@@ -46,6 +48,8 @@ struct TimeSignatureControl: View {
                     Text("Note")
                         .font(.system(size: Theme.Typography.caption, weight: .medium))
                         .foregroundColor(Theme.Colors.textSecondary)
+                        .fixedSize()
+                        .layoutPriority(1)
 
                     Picker("Note Value", selection: $metronome.timeSignature.noteValue) {
                         ForEach(noteValueOptions, id: \.self) { value in
