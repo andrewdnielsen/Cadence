@@ -173,17 +173,9 @@ class Metronome: ObservableObject, HasAudioEngine {
                 return
             }
 
-            // Check if the metronome should be playing
-            if isPlaying {
-                // If playing, calculate speed based on tempo
-                let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
-                speedProperty.value = speedMultiplier
-                print("Animation speed set to: \(speedProperty.value) (tempo: \(tempo), baseBPM: \(animationBaseBPM))")
-            } else {
-                // If not playing, the speed must be 0
-                speedProperty.value = 0
-                print("Animation speed set to 0 (stopped)")
-            }
+            let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
+        speedProperty.value = speedMultiplier
+        print("Animation speed set to: \(speedProperty.value)")
         }
     
     
@@ -335,6 +327,11 @@ class Metronome: ObservableObject, HasAudioEngine {
 
         // Reset Rive animation to beginning
         riveViewModel?.reset()
+        
+        if let vm = riveViewModel {
+            setRiveViewModel(vm)
+            updateAnimationSpeed()
+        }
     }
     
     /// Toggles the metronome playback state.
