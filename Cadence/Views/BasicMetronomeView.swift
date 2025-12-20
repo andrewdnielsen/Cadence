@@ -16,6 +16,7 @@ struct BasicMetronomeView: View {
                     x: geometry.size.width / 2,
                     y: geometry.size.height / 2
                 )
+                .allowsHitTesting(false)
                 .accessibilityHidden(true)
                 .onAppear {
                     // Sync animation state with metronome when view appears
