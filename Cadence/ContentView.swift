@@ -26,7 +26,7 @@ struct ContentView: View {
 
                     TabView(selection: $currentTab) {
                         // Basic metronome visualizer (page 0)
-                        BasicMetronomeView(riveViewModel: riveViewModel)
+                        BasicMetronomeView(metronome: metronome, riveViewModel: riveViewModel)
                             .tag(0)
 
                         // Advanced metronome view (page 1)
