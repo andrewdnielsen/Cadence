@@ -24,12 +24,7 @@ struct TransportButton: View {
                 Circle()
                     .fill(Theme.Colors.primary)
                     .frame(width: buttonSize, height: buttonSize)
-                    .shadow(
-                        color: Theme.Colors.primary.opacity(0.5),
-                        radius: Theme.Shadow.large.radius,
-                        x: Theme.Shadow.large.x,
-                        y: Theme.Shadow.large.y
-                    )
+
 
                 // Icon
                 Image(systemName: metronome.isPlaying ? "stop.fill" : "play.fill")
