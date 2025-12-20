@@ -37,7 +37,6 @@ struct BeatTile: View {
             onToggle()
         }) {
             ZStack {
-                // Background circle (size controlled by parent via .frame modifier)
                 Circle()
                     .fill(tileColor)
                     .overlay(
@@ -77,9 +76,22 @@ struct BeatTile: View {
         )
         .animation(Theme.Animation.smoothSpring, value: isCurrent)
         .animation(.easeInOut(duration: 0.2), value: isEnabled)
+        .accessibilityLabel(accessibilityLabel)
+        .accessibilityValue(isEnabled ? "Enabled" : "Disabled")
+        .accessibilityHint("Double tap to \(isEnabled ? "disable" : "enable") this beat")
+        .accessibilityAddTraits(.isButton)
     }
 
     // MARK: - Computed Properties
+
+    /// Accessibility label describing the beat
+    private var accessibilityLabel: String {
+        if isDownbeat {
+            return "Beat \(beatNumber), Downbeat"
+        } else {
+            return "Beat \(beatNumber)"
+        }
+    }
 
     /// The color of the tile based on state
     private var tileColor: Color {

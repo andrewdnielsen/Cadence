@@ -18,7 +18,6 @@ struct AdvancedMetronomeView: View {
 
     var body: some View {
         VStack(alignment: .center, spacing: 0) {
-            // Time signature control - pinned to top
             TimeSignatureControl(metronome: metronome)
                 .padding(.horizontal, Theme.Spacing.md)
                 .padding(.top, Theme.Spacing.xs)
@@ -26,16 +25,17 @@ struct AdvancedMetronomeView: View {
             Spacer()
                 .frame(height: Theme.Spacing.xl)
 
-            // Beat grid visualization - responsive sizing
             BeatGridView(
                 metronome: metronome,
                 availableWidth: availableWidth,
-                availableHeight: availableHeight - 120 // Account for time signature control + spacing
+                availableHeight: availableHeight - 120
             )
 
             Spacer()
         }
         .frame(maxHeight: .infinity, alignment: .top)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Advanced metronome view")
     }
 }
 

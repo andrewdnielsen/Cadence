@@ -122,15 +122,12 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// The metronome will use a custom sound file if present in the bundle,
     /// otherwise it falls back to built-in sounds.
     init() {
-        // Add track for metronome sounds
         sequencer.addTrack(for: sampler)
-        
-        // Add callback track for beat tracking
+
         callbackInst = CallbackInstrument(midiCallback: { [weak self] noteNumber, velocity, _ in
             DispatchQueue.main.async {
                 guard let self = self else { return }
                 self.currentBeat = Int(noteNumber)
-                print("Beat callback fired: noteNumber = \(noteNumber), velocity = \(velocity), currentBeat = \(self.currentBeat)")
             }
         })
         
@@ -158,16 +155,12 @@ class Metronome: ObservableObject, HasAudioEngine {
 
         viewModel.riveModel?.stateMachine?.bind(viewModelInstance: instance)
         self.metStickInstance = instance
-        print("Rive instance set up and bound successfully.")
 
-        // Use pause() here to ensure the animation starts in a paused state.
         self.riveViewModel?.pause()
         updateAnimationSpeed()
     }
     /// Updates the animation speed based on current tempo
     private func updateAnimationSpeed() {
-            print("updateAnimationSpeed called - tempo: \(tempo), isPlaying: \(isPlaying)")
-
             guard let speedProperty = metStickInstance?.numberProperty(fromPath: "speed") else {
                 print("ERROR: Failed to get speed property - metStickInstance is \(metStickInstance == nil ? "nil" : "not nil")")
                 return
@@ -175,7 +168,6 @@ class Metronome: ObservableObject, HasAudioEngine {
 
             let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
         speedProperty.value = speedMultiplier
-        print("Animation speed set to: \(speedProperty.value)")
         }
     
     
@@ -196,18 +188,15 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// If found, it attempts to load it. If not found or loading fails,
     /// it falls back to built-in General MIDI sounds.
     private func loadClickSounds() {
-        // First try to load custom click.wav file
         if let customURL = Bundle.main.url(forResource: soundResourceName, withExtension: soundResourceExtension) {
             do {
                 try sampler.loadInstrument(url: customURL)
-                print("Loaded custom click sound: \(soundResourceName).\(soundResourceExtension)")
                 return
             } catch {
                 print("Error loading custom click sound: \(error)")
             }
         }
-        
-        // Fall back to built-in sounds
+
         loadDefaultClickSounds()
     }
     
@@ -216,10 +205,8 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// Uses AudioKit's built-in General MIDI soundfont for metronome sounds.
     private func loadDefaultClickSounds() {
         do {
-            // Load built-in General MIDI soundfont
             if let soundfontURL = Bundle.main.url(forResource: "GeneralUser GS MuseScore v1.442", withExtension: "sf2") {
                 try sampler.loadInstrument(url: soundfontURL)
-                print("Loaded built-in metronome sounds")
             } else {
                 print("Warning: Could not find built-in soundfont")
             }
@@ -234,19 +221,15 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// callback track based on the current time signature settings.
     /// Only enabled beats will produce sound.
     private func updateSequences() {
-        // Update audio track
         var track = sequencer.tracks.first!
         track.length = Double(timeSignature.beats)
         track.clear()
 
-        // Add notes only for enabled beats
         for beat in 0..<timeSignature.beats {
-            // Skip if this beat is disabled
             guard beat < beatsEnabled.count && beatsEnabled[beat] else {
                 continue
             }
 
-            // Use downbeat note for first beat, regular note for others
             let noteNumber = (beat == 0) ? downbeatNoteNumber : beatNoteNumber
             track.sequence.add(noteNumber: noteNumber,
                               velocity: MIDIVelocity(Int(beatNoteVelocity)),
@@ -254,8 +237,6 @@ class Metronome: ObservableObject, HasAudioEngine {
                               duration: 0.1)
         }
 
-        // Update callback track for beat indication
-        // Callback track includes ALL beats (enabled and disabled) for visual tracking
         track = sequencer.tracks[1]
         track.length = Double(timeSignature.beats)
         track.clear()
@@ -275,25 +256,18 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// This method starts the audio engine and begins sequence playback.
     func start() {
         do {
-            // Only start engine if it's not already running
             if !engine.avEngine.isRunning {
                 try engine.start()
             }
             isPlaying = true
 
-            // Track when playback started
             playbackStartTime = Date()
 
-            // Start timer to track beat position
             beatTimer?.invalidate()
             beatTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
                 guard let self = self, self.isPlaying, let startTime = self.playbackStartTime else { return }
 
-                // Calculate elapsed time in seconds
                 let elapsedTime = Date().timeIntervalSince(startTime)
-
-                // Calculate current beat based on tempo and elapsed time
-                // beatsElapsed = (seconds * BPM) / 60
                 let beatsElapsed = (elapsedTime * Double(self.tempo)) / 60.0
                 let beat = Int(beatsElapsed) % self.timeSignature.beats
 
@@ -314,20 +288,15 @@ class Metronome: ObservableObject, HasAudioEngine {
     func stop() {
         isPlaying = false
 
-        // Stop beat tracking timer
         beatTimer?.invalidate()
         beatTimer = nil
         playbackStartTime = nil
 
-        // Rewind sequencer to beginning
         sequencer.rewind()
-
-        // Reset current beat to 0
         currentBeat = 0
 
-        // Reset Rive animation to beginning
         riveViewModel?.reset()
-        
+
         if let vm = riveViewModel {
             setRiveViewModel(vm)
             updateAnimationSpeed()
@@ -372,7 +341,5 @@ class Metronome: ObservableObject, HasAudioEngine {
 
         riveViewModel = nil
         metStickInstance = nil
-
-        print("Metronome deallocated and cleaned up")
     }
 }

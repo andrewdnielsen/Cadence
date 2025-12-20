@@ -12,22 +12,20 @@ struct ContentView: View {
     var body: some View {
         GeometryReader { geometry in
             ZStack {
-                // Background
                 Theme.Colors.background
                     .ignoresSafeArea()
 
                 VStack(spacing: 0) {
-                    // Top spacing
                     Spacer()
                         .frame(height: Theme.Spacing.xs)
 
-                    // Swipeable content area - responsive height
                     let tabViewHeight = min(max(geometry.size.height * 0.55, 350), 520)
 
                     TabView(selection: $currentTab) {
                         // Basic metronome visualizer (page 0)
                         BasicMetronomeView(metronome: metronome, riveViewModel: riveViewModel)
                             .tag(0)
+                            .accessibilityLabel("Basic view page")
 
                         // Advanced metronome view (page 1)
                         AdvancedMetronomeView(
@@ -36,24 +34,22 @@ struct ContentView: View {
                             availableHeight: tabViewHeight
                         )
                         .tag(1)
+                        .accessibilityLabel("Advanced view page")
                     }
                     .frame(height: tabViewHeight)
                     .tabViewStyle(.page)
                     .indexViewStyle(.page(backgroundDisplayMode: .always))
                     .animation(.easeInOut(duration: 0.3), value: currentTab)
 
-                    // Shared controls - visible for both views
                     Spacer()
                         .frame(height: Theme.Spacing.md)
 
-                    // Tempo controls
                     TempoControls(metronome: metronome)
                         .padding(.horizontal, Theme.Spacing.md)
 
                     Spacer()
                         .frame(height: Theme.Spacing.lg)
 
-                    // Play/pause button
                     TransportButton(metronome: metronome)
                         .padding(.bottom, Theme.Spacing.md)
                 }

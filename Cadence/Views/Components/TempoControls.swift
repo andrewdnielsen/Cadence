@@ -128,7 +128,6 @@ struct TempoControls: View {
             .accessibilityValue("\(Int(metronome.tempo)) BPM")
             .accessibilityHint("Adjust from \(Int(minTempo)) to \(Int(maxTempo)) BPM")
 
-            // Min/max labels
             HStack {
                 Text("\(Int(minTempo))")
                     .font(.system(size: Theme.Typography.caption, weight: .medium))
@@ -162,23 +161,14 @@ struct TempoControls: View {
 
     /// Cancel editing and revert to original value
     private func cancelEditing() {
-        // Set cancelling flag to prevent onChange from calling finishEditing
         isCancelling = true
-
-        // Remove border immediately
         showBorder = false
-
-        // Dismiss the keyboard
         isBPMFocused = false
-
-        // Clear text selection
         textSelection = nil
 
-        // Revert to original tempo immediately
         metronome.tempo = BPM(originalTempo)
         bpmText = "\(Int(originalTempo))"
 
-        // Exit editing mode after keyboard animation completes (smooth transition)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             isEditingBPM = false
             isCancelling = false
@@ -187,31 +177,20 @@ struct TempoControls: View {
 
     /// Finish editing and validate input
     private func finishEditing() {
-        // Remove border immediately
         showBorder = false
-
-        // Dismiss the keyboard
         isBPMFocused = false
-
-        // Clear text selection
         textSelection = nil
 
-        // Try to parse the input
         guard let newBPM = Double(bpmText) else {
-            // Invalid input, revert after keyboard dismisses
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
                 isEditingBPM = false
             }
             return
         }
 
-        // Validate range
         let clampedBPM = min(max(newBPM, minTempo), maxTempo)
-
-        // Update tempo immediately so slider responds right away
         metronome.tempo = BPM(clampedBPM)
 
-        // Exit editing mode after keyboard animation completes
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
             isEditingBPM = false
         }

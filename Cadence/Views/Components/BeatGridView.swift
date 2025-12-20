@@ -48,6 +48,9 @@ struct BeatGridView: View {
             }
         }
         .padding(.horizontal, Theme.Spacing.md)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Beat pattern grid")
+        .accessibilityHint("Displays \(metronome.timeSignature.beats) beats in \(metronome.timeSignature.beats) over \(metronome.timeSignature.noteValue) time")
     }
 
     // MARK: - Helper Methods
@@ -78,7 +81,6 @@ struct BeatGridView: View {
             beatsPerRow = (beatCount + 1) / 2
         }
 
-        // Build rows array
         var rows: [[Int]] = []
         for startIndex in stride(from: 0, to: beatCount, by: beatsPerRow) {
             let endIndex = min(startIndex + beatsPerRow, beatCount)
@@ -94,7 +96,6 @@ struct BeatGridView: View {
     ///   - rows: Array of beat rows from buildBeatRows()
     /// - Returns: Sizing information for tiles, tile spacing, and row spacing
     private func calculateSizing(beatCount: Int, rows: [[Int]]) -> (tileSize: CGFloat, spacing: CGFloat, rowSpacing: CGFloat) {
-        // Default sizing
         let defaultTileSize: CGFloat = 60
         let defaultSpacing: CGFloat = 8
         let defaultRowSpacing: CGFloat = 16
@@ -102,37 +103,27 @@ struct BeatGridView: View {
         let minimumSpacing: CGFloat = 4
         let minimumRowSpacing: CGFloat = 8
 
-        // If no width constraint provided, use defaults
         guard let maxWidth = availableWidth else {
             return (defaultTileSize, defaultSpacing, defaultRowSpacing)
         }
 
-        // Calculate the maximum beats in any single row
         let maxBeatsInRow = rows.map { $0.count }.max() ?? 1
         let numRows = rows.count
 
-        // Calculate required width at default size
-        let horizontalPadding: CGFloat = Theme.Spacing.md * 2 // Left and right padding
+        let horizontalPadding: CGFloat = Theme.Spacing.md * 2
         let availableForGrid = maxWidth - horizontalPadding
 
-        // Required width = (tiles × tileSize) + (gaps × spacing)
         let defaultRequiredWidth = CGFloat(maxBeatsInRow) * defaultTileSize + CGFloat(maxBeatsInRow - 1) * defaultSpacing
-
-        // Calculate width scale factor
         let widthScaleFactor = min(1.0, availableForGrid / defaultRequiredWidth)
 
-        // Calculate height scale factor if height is provided
         var heightScaleFactor: CGFloat = 1.0
         if let maxHeight = availableHeight, numRows > 1 {
-            // Required height = (tiles × tileSize) + (gaps × rowSpacing)
             let defaultRequiredHeight = CGFloat(numRows) * defaultTileSize + CGFloat(numRows - 1) * defaultRowSpacing
             heightScaleFactor = min(1.0, maxHeight / defaultRequiredHeight)
         }
 
-        // Use the more restrictive scale factor
         let scaleFactor = min(widthScaleFactor, heightScaleFactor)
 
-        // Apply scaling with minimums
         let scaledTileSize = max(minimumTileSize, defaultTileSize * scaleFactor)
         let scaledSpacing = max(minimumSpacing, defaultSpacing * scaleFactor)
         let scaledRowSpacing = max(minimumRowSpacing, defaultRowSpacing * scaleFactor)

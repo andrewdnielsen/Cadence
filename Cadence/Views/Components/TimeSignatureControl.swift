@@ -17,16 +17,13 @@ struct TimeSignatureControl: View {
 
     var body: some View {
         HStack(spacing: Theme.Spacing.md) {
-            // Time signature display
             timeSignatureDisplay
 
             Divider()
                 .frame(height: 50)
                 .background(Theme.Colors.textSecondary.opacity(0.3))
 
-            // Controls
             HStack(spacing: Theme.Spacing.md) {
-                // Beats selector
                 HStack(spacing: Theme.Spacing.sm) {
                     Text("Beats")
                         .font(.system(size: Theme.Typography.caption, weight: .medium))
@@ -41,6 +38,8 @@ struct TimeSignatureControl: View {
                     }
                     .pickerStyle(.menu)
                     .accentColor(Theme.Colors.primary)
+                    .accessibilityLabel("Beats per measure")
+                    .accessibilityValue("\(metronome.timeSignature.beats)")
                 }
 
                 // Note value selector
@@ -58,6 +57,8 @@ struct TimeSignatureControl: View {
                     }
                     .pickerStyle(.menu)
                     .accentColor(Theme.Colors.primary)
+                    .accessibilityLabel("Note value")
+                    .accessibilityValue("\(metronome.timeSignature.noteValue)")
                 }
             }
         }
@@ -82,6 +83,9 @@ struct TimeSignatureControl: View {
                 .foregroundColor(Theme.Colors.primary)
         }
         .frame(width: 60)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Time signature")
+        .accessibilityValue("\(metronome.timeSignature.beats) over \(metronome.timeSignature.noteValue)")
     }
 }
 

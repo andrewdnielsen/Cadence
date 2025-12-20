@@ -19,7 +19,6 @@ struct BasicMetronomeView: View {
                 .allowsHitTesting(false)
                 .accessibilityHidden(true)
                 .onAppear {
-                    // Sync animation state with metronome when view appears
                     if metronome.isPlaying {
                         riveViewModel.play()
                     } else {
@@ -27,10 +26,12 @@ struct BasicMetronomeView: View {
                     }
                 }
                 .onDisappear {
-                    // Always pause animation when view disappears
                     riveViewModel.pause()
                 }
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Metronome visualization")
+        .accessibilityValue(metronome.isPlaying ? "Playing at \(Int(metronome.tempo)) BPM" : "Stopped")
     }
 }
 
