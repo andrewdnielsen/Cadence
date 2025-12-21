@@ -316,8 +316,8 @@ class Metronome: ObservableObject, HasAudioEngine {
         sequencer.rewind()
         currentBeat = 0
 
-        // Stop the audio engine to release resources and allow proper audio session sharing
-        engine.stop()
+        // Keep audio engine running to prevent sampler corruption
+        // Engine will be stopped when ContentView disappears
 
         riveViewModel?.reset()
 
