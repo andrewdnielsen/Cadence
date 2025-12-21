@@ -84,6 +84,16 @@ class Metronome: ObservableObject, HasAudioEngine {
         didSet {
             sequencer.tempo = tempo
             updateAnimationSpeed()
+
+            // If playing, adjust playback start time to maintain beat sync
+            if isPlaying, let startTime = playbackStartTime {
+                let elapsedTime = Date().timeIntervalSince(startTime)
+                let beatsElapsed = (elapsedTime * Double(oldValue)) / 60.0
+
+                // Calculate new start time that would put us at the same beat position with new tempo
+                let newElapsedTime = (beatsElapsed * 60.0) / Double(tempo)
+                playbackStartTime = Date().addingTimeInterval(-newElapsedTime)
+            }
         }
     }
     
@@ -144,6 +154,7 @@ class Metronome: ObservableObject, HasAudioEngine {
 
         mixer.addInput(downbeatSampler)
         mixer.addInput(beatSampler)
+        mixer.volume = 1.5  // Increase volume by 50%
         engine.output = mixer
 
         setupSampler()
