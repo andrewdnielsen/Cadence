@@ -54,6 +54,7 @@ struct ContentView: View {
                         .padding(.bottom, Theme.Spacing.md)
                 }
             }
+            .ignoresSafeArea(.keyboard)
             .onAppear {
                 metronome.setRiveViewModel(riveViewModel)
             }

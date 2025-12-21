@@ -154,7 +154,7 @@ class Metronome: ObservableObject, HasAudioEngine {
 
         mixer.addInput(downbeatSampler)
         mixer.addInput(beatSampler)
-        mixer.volume = 1.5  // Increase volume by 50%
+        mixer.volume = 20  // Increase volume by 50%
         engine.output = mixer
 
         setupSampler()

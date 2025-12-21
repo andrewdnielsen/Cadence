@@ -24,7 +24,6 @@ struct TempoControls: View {
     @State private var showBorder = false
     @FocusState private var isBPMFocused: Bool
     @State private var textSelection: TextSelection?
-    @State private var isCancelling = false
 
     var body: some View {
         VStack(spacing: Theme.Spacing.lg) {
@@ -40,63 +39,67 @@ struct TempoControls: View {
     private var bpmDisplay: some View {
         VStack(spacing: Theme.Spacing.xs) {
             ZStack {
-                if isEditingBPM {
-                    // Inline editing TextField
-                    TextField("", text: $bpmText, selection: $textSelection)
-                        .font(.system(size: Theme.Typography.displayLarge, weight: .bold))
-                        .foregroundColor(Theme.Colors.textPrimary)
-                        .multilineTextAlignment(.center)
-                        .keyboardType(.numberPad)
-                        .focused($isBPMFocused)
-                        .frame(minWidth: 120, maxWidth: 180)
-                        .padding(.vertical, 4)
-                        .overlay(
-                            Group {
-                                if showBorder {
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .stroke(Theme.Colors.primary, lineWidth: 2)
-                                }
-                            }
-                        )
-                        .toolbar {
-                            ToolbarItemGroup(placement: .keyboard) {
-                                Button("Cancel") {
-                                    cancelEditing()
-                                }
+                // Normal BPM display - always present, hidden when editing
+                Text("\(Int(metronome.tempo))")
+                    .font(.system(size: Theme.Typography.displayLarge, weight: .bold))
+                    .foregroundColor(Theme.Colors.textPrimary)
+                    .frame(height: 80)
+                    .opacity(isEditingBPM ? 0 : 1)
+                    .animation(.none, value: isEditingBPM)
+                    .animation(.none, value: metronome.tempo)
+                    .allowsHitTesting(!isEditingBPM)
+                    .onTapGesture {
+                        startEditing()
+                    }
+                    .accessibilityLabel("Beats per minute")
+                    .accessibilityValue("\(Int(metronome.tempo))")
+                    .accessibilityHint("Double tap to edit")
+                    .accessibilityAddTraits(.isButton)
 
-                                Spacer()
+                // Inline editing TextField - always present, hidden when not editing
+                TextField("", text: $bpmText, selection: $textSelection)
+                    .font(.system(size: Theme.Typography.displayLarge, weight: .bold))
+                    .foregroundColor(Theme.Colors.textPrimary)
+                    .multilineTextAlignment(.center)
+                    .keyboardType(.numberPad)
+                    .focused($isBPMFocused)
+                    .frame(minWidth: 120, maxWidth: 180)
+                    .padding(.vertical, 4)
+                    .overlay(
+                        Group {
+                            if showBorder {
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(Theme.Colors.primary, lineWidth: 2)
+                            }
+                        }
+                    )
+                    .opacity(isEditingBPM ? 1 : 0)
+                    .animation(.none, value: isEditingBPM)
+                    .allowsHitTesting(isEditingBPM)
+                    .toolbar {
+                        ToolbarItemGroup(placement: .keyboard) {
+                            Button("Cancel") {
+                                cancelEditing()
+                            }
 
-                                Button("Done") {
-                                    finishEditing()
-                                }
-                                .fontWeight(.semibold)
+                            Spacer()
+
+                            Button("Done") {
+                                finishEditing()
                             }
+                            .fontWeight(.semibold)
                         }
-                        .onSubmit {
-                            finishEditing()
+                    }
+                    .onSubmit {
+                        finishEditing()
+                    }
+                    .onChange(of: bpmText) { oldValue, newValue in
+                        if newValue.count > maxBPMDigits {
+                            bpmText = oldValue
                         }
-                        .onChange(of: bpmText) { oldValue, newValue in
-                            if newValue.count > maxBPMDigits {
-                                bpmText = oldValue
-                            }
-                        }
-                        .accessibilityLabel("BPM")
-                        .accessibilityHint("Enter value between \(Int(minTempo)) and \(Int(maxTempo))")
-                } else {
-                    // Normal BPM display
-                    Text("\(Int(metronome.tempo))")
-                        .font(.system(size: Theme.Typography.displayLarge, weight: .bold))
-                        .foregroundColor(Theme.Colors.textPrimary)
-                        .animation(.none, value: metronome.tempo)
-                        .frame(height: 80)
-                        .onTapGesture {
-                            startEditing()
-                        }
-                        .accessibilityLabel("Beats per minute")
-                        .accessibilityValue("\(Int(metronome.tempo))")
-                        .accessibilityHint("Double tap to edit")
-                        .accessibilityAddTraits(.isButton)
-                }
+                    }
+                    .accessibilityLabel("BPM")
+                    .accessibilityHint("Enter value between \(Int(minTempo)) and \(Int(maxTempo))")
             }
             .frame(height: 80)
 
@@ -104,11 +107,6 @@ struct TempoControls: View {
                 .font(.system(size: Theme.Typography.body, weight: .semibold))
                 .foregroundColor(Theme.Colors.textSecondary)
                 .tracking(2)
-        }
-        .onChange(of: isBPMFocused) { _, newValue in
-            if !newValue && isEditingBPM && !isCancelling {
-                finishEditing()
-            }
         }
     }
 
@@ -147,32 +145,33 @@ struct TempoControls: View {
 
     /// Start editing BPM
     private func startEditing() {
+        // Batch all state updates together to minimize main thread work
         originalTempo = metronome.tempo
         bpmText = "\(Int(metronome.tempo))"
-        isEditingBPM = true
-        showBorder = true
+
+        withAnimation(.none) {
+            isEditingBPM = true
+            showBorder = true
+        }
+
+        // Focus field - text selection will happen automatically via the TextField's selection binding
         isBPMFocused = true
 
-        // Auto-select all text after the field appears
-        DispatchQueue.main.async {
+        // Defer text selection to next run loop to ensure TextField is ready
+        DispatchQueue.main.async { [self] in
             textSelection = TextSelection(range: bpmText.startIndex..<bpmText.endIndex)
         }
     }
 
     /// Cancel editing and revert to original value
     private func cancelEditing() {
-        isCancelling = true
         showBorder = false
         isBPMFocused = false
         textSelection = nil
+        isEditingBPM = false
 
         metronome.tempo = BPM(originalTempo)
         bpmText = "\(Int(originalTempo))"
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            isEditingBPM = false
-            isCancelling = false
-        }
     }
 
     /// Finish editing and validate input
@@ -180,20 +179,14 @@ struct TempoControls: View {
         showBorder = false
         isBPMFocused = false
         textSelection = nil
+        isEditingBPM = false
 
         guard let newBPM = Double(bpmText) else {
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                isEditingBPM = false
-            }
             return
         }
 
         let clampedBPM = min(max(newBPM, minTempo), maxTempo)
         metronome.tempo = BPM(clampedBPM)
-
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-            isEditingBPM = false
-        }
     }
 }
 
