@@ -5,6 +5,7 @@
 //  Created by Andrew Nielsen on 7/3/25.
 //
 import Foundation
+import AVFoundation
 import AudioKit
 import AudioKitEX
 import SwiftUI
@@ -26,12 +27,18 @@ struct TimeSignature {
 class Metronome: ObservableObject, HasAudioEngine {
     
     // MARK: - Audio Engine Components
-    
+
     /// The main audio engine for processing audio.
     let engine = AudioEngine()
-    
-    /// The sampler instrument for generating metronome sounds.
-    let sampler = AppleSampler()
+
+    /// The sampler instrument for downbeat sounds (high.wav).
+    let downbeatSampler = AppleSampler()
+
+    /// The sampler instrument for regular beat sounds (low.wav).
+    let beatSampler = AppleSampler()
+
+    /// Mixer to combine both samplers.
+    let mixer = Mixer()
     
     /// Callback instrument for tracking beat position.
     var callbackInst = CallbackInstrument()
@@ -99,20 +106,21 @@ class Metronome: ObservableObject, HasAudioEngine {
 
     // MARK: - Private Properties
     
-    /// The MIDI note number for the downbeat sound.
-    private let downbeatNoteNumber = MIDINoteNumber(60)
-
-    /// The MIDI note number for regular beats.
-    private let beatNoteNumber = MIDINoteNumber(60)
+    /// The MIDI note number for both downbeat and regular beat sounds.
+    /// Since we use separate samplers, both can use the same note number.
+    private let clickNoteNumber = MIDINoteNumber(60)
     
     /// The velocity for beat notes.
     private let beatNoteVelocity = 100.0
-    
-    /// The name of the custom sound file to look for.
-    private let soundResourceName = "click"
-    
-    /// The extension of the custom sound file.
-    private let soundResourceExtension = "sf2"
+
+    /// The name of the high click sound file (for downbeats).
+    private let highClickSoundName = "high"
+
+    /// The name of the low click sound file (for regular beats).
+    private let lowClickSoundName = "low"
+
+    /// The extension of the click sound files.
+    private let soundExtension = "wav"
     
     // MARK: - Initialization
     
@@ -122,7 +130,8 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// The metronome will use a custom sound file if present in the bundle,
     /// otherwise it falls back to built-in sounds.
     init() {
-        sequencer.addTrack(for: sampler)
+        sequencer.addTrack(for: downbeatSampler)
+        sequencer.addTrack(for: beatSampler)
 
         callbackInst = CallbackInstrument(midiCallback: { [weak self] noteNumber, velocity, _ in
             DispatchQueue.main.async {
@@ -130,10 +139,12 @@ class Metronome: ObservableObject, HasAudioEngine {
                 self.currentBeat = Int(noteNumber)
             }
         })
-        
+
         sequencer.addTrack(for: callbackInst)
-        
-        engine.output = sampler
+
+        mixer.addInput(downbeatSampler)
+        mixer.addInput(beatSampler)
+        engine.output = mixer
 
         setupSampler()
         resetBeats()
@@ -184,68 +195,67 @@ class Metronome: ObservableObject, HasAudioEngine {
     
     /// Loads click sounds for the metronome.
     ///
-    /// This method first checks for a custom file in the app bundle.
-    /// If found, it attempts to load it. If not found or loading fails,
-    /// it falls back to built-in General MIDI sounds.
+    /// This method loads the high.wav file into the downbeat sampler
+    /// and low.wav into the regular beat sampler.
     private func loadClickSounds() {
-        if let customURL = Bundle.main.url(forResource: soundResourceName, withExtension: soundResourceExtension) {
-            do {
-                try sampler.loadInstrument(url: customURL)
-                return
-            } catch {
-                print("Error loading custom click sound: \(error)")
-            }
+        guard let highURL = Bundle.main.url(forResource: highClickSoundName, withExtension: soundExtension),
+              let lowURL = Bundle.main.url(forResource: lowClickSoundName, withExtension: soundExtension) else {
+            print("Error: Could not find high.wav or low.wav in bundle")
+            return
         }
 
-        loadDefaultClickSounds()
-    }
-    
-    /// Loads default built-in click sounds.
-    ///
-    /// Uses AudioKit's built-in General MIDI soundfont for metronome sounds.
-    private func loadDefaultClickSounds() {
         do {
-            if let soundfontURL = Bundle.main.url(forResource: "GeneralUser GS MuseScore v1.442", withExtension: "sf2") {
-                try sampler.loadInstrument(url: soundfontURL)
-            } else {
-                print("Warning: Could not find built-in soundfont")
-            }
+            let highFile = try AVAudioFile(forReading: highURL)
+            let lowFile = try AVAudioFile(forReading: lowURL)
+
+            try downbeatSampler.loadAudioFile(highFile)
+            try beatSampler.loadAudioFile(lowFile)
         } catch {
-            print("Error loading built-in metronome sounds: \(error)")
+            print("Error loading click sounds: \(error)")
         }
     }
     
     /// Updates the sequencer tracks to match the current time signature.
     ///
-    /// This method recreates the MIDI sequences for both the audio track and the
+    /// This method recreates the MIDI sequences for both sampler tracks and the
     /// callback track based on the current time signature settings.
     /// Only enabled beats will produce sound.
     private func updateSequences() {
-        var track = sequencer.tracks.first!
-        track.length = Double(timeSignature.beats)
-        track.clear()
+        let downbeatTrack = sequencer.tracks[0]
+        downbeatTrack.length = Double(timeSignature.beats)
+        downbeatTrack.clear()
 
-        for beat in 0..<timeSignature.beats {
+        if beatsEnabled.count > 0 && beatsEnabled[0] {
+            downbeatTrack.sequence.add(noteNumber: clickNoteNumber,
+                                      velocity: MIDIVelocity(Int(beatNoteVelocity)),
+                                      position: 0.0,
+                                      duration: 0.1)
+        }
+
+        let beatTrack = sequencer.tracks[1]
+        beatTrack.length = Double(timeSignature.beats)
+        beatTrack.clear()
+
+        for beat in 1..<timeSignature.beats {
             guard beat < beatsEnabled.count && beatsEnabled[beat] else {
                 continue
             }
 
-            let noteNumber = (beat == 0) ? downbeatNoteNumber : beatNoteNumber
-            track.sequence.add(noteNumber: noteNumber,
-                              velocity: MIDIVelocity(Int(beatNoteVelocity)),
-                              position: Double(beat),
-                              duration: 0.1)
+            beatTrack.sequence.add(noteNumber: clickNoteNumber,
+                                  velocity: MIDIVelocity(Int(beatNoteVelocity)),
+                                  position: Double(beat),
+                                  duration: 0.1)
         }
 
-        track = sequencer.tracks[1]
-        track.length = Double(timeSignature.beats)
-        track.clear()
+        let callbackTrack = sequencer.tracks[2]
+        callbackTrack.length = Double(timeSignature.beats)
+        callbackTrack.clear()
 
         for beat in 0..<timeSignature.beats {
-            track.sequence.add(noteNumber: MIDINoteNumber(beat),
-                              velocity: MIDIVelocity(100),
-                              position: Double(beat),
-                              duration: 0.1)
+            callbackTrack.sequence.add(noteNumber: MIDINoteNumber(beat),
+                                      velocity: MIDIVelocity(100),
+                                      position: Double(beat),
+                                      duration: 0.1)
         }
     }
     
