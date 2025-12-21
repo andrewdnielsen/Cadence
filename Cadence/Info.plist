@@ -6,5 +6,7 @@
 	<array>
 		<string>audio</string>
 	</array>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Cadence needs access to your microphone to detect the pitch of your instrument for the tuner feature.</string>
 </dict>
 </plist>
