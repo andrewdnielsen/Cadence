@@ -316,6 +316,9 @@ class Metronome: ObservableObject, HasAudioEngine {
         sequencer.rewind()
         currentBeat = 0
 
+        // Stop the audio engine to release resources and allow proper audio session sharing
+        engine.stop()
+
         riveViewModel?.reset()
 
         if let vm = riveViewModel {

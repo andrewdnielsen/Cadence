@@ -75,11 +75,8 @@ class Tuner: ObservableObject, HasAudioEngine {
     /// Starts the tuner and begins listening for audio input
     func start() {
         do {
-            // Request microphone permission
-            #if !targetEnvironment(simulator)
-            try AVAudioSession.sharedInstance().setCategory(.record, mode: .measurement, options: [])
-            try AVAudioSession.sharedInstance().setActive(true)
-            #endif
+            // Audio session is configured app-wide in CadenceApp to support
+            // simultaneous playback (metronome) and recording (tuner)
 
             if !engine.avEngine.isRunning {
                 try engine.start()
@@ -97,13 +94,8 @@ class Tuner: ObservableObject, HasAudioEngine {
     func stop() {
         tracker.stop()
 
-        #if !targetEnvironment(simulator)
-        do {
-            try AVAudioSession.sharedInstance().setActive(false)
-        } catch {
-            print("Error deactivating audio session: \(error.localizedDescription)")
-        }
-        #endif
+        // Audio session remains active for app-wide use (metronome may still be playing)
+        // It will be deactivated when the app terminates
 
         // Reset displayed values
         DispatchQueue.main.async { [weak self] in
