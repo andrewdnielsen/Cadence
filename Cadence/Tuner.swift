@@ -37,22 +37,37 @@ class Tuner: ObservableObject, HasAudioEngine {
     @Published var detectedNote: String = "--"
     @Published var detectedCents: Double = 0.0
     @Published var amplitude: Double = 0.0
+    @Published var isSignalActive: Bool = false  // Indicates if currently receiving valid signal
+    @Published var sustainedInTuneTime: Double = 0.0  // Time note has been held in tune
 
     // MARK: - Private Properties
 
-    // dB threshold for professional tuning accuracy
-    private let minimumDB: Float = -30.0  // Calibrated threshold for note detection
+    // dB threshold for professional tuning accuracy (balanced for noise rejection)
+    private let minimumDB: Float = -32.0  // Filters background noise while responsive to instruments
 
-    // Smoothing parameters
-    private let frequencySmoothingFactor: Double = 0.15  // Smoother frequency transitions
-    private let centsSmoothingFactor: Double = 0.2  // Smoother cents display
+    // Smoothing parameters (reduced for faster response like TE Tuner)
+    private let frequencySmoothingFactor: Double = 0.3  // Faster frequency updates
+    private let centsSmoothingFactor: Double = 0.35  // Faster cents display
     private var previousFrequency: Double = 0.0
     private var previousCents: Double = 0.0
 
-    // Signal stability validation
+    // Signal stability validation (balanced for noise rejection + responsiveness)
     private var recentFrequencies: [Double] = []
-    private let stabilityWindowSize = 4  // Require 4 consecutive similar readings
-    private let stabilityThreshold: Double = 10.0  // Within 10 Hz tolerance
+    private let stabilityWindowSize = 3  // 3 readings filters noise spikes (~50-100ms)
+    private let stabilityThreshold: Double = 8.0  // Real notes stable within 8 Hz
+
+    // Amplitude stability validation (filters fluctuating background noise)
+    private var recentAmplitudes: [Float] = []
+    private let amplitudeWindowSize = 4  // Track recent amplitudes
+    private let maxAmplitudeVariance: Float = 0.3  // Reject if amplitude varies >30%
+
+    // Minimum sustained duration (prevents transient noise spikes)
+    private var signalStartTime: Date?
+    private let minimumDuration: TimeInterval = 0.15  // 150ms sustained signal required
+
+    // Sustained in-tune tracking
+    private var lastUpdateTime: Date = Date()
+    private let inTuneThreshold: Double = 3.0  // Within 3 cents is "in tune"
 
     // Note names for conversion
     private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -132,21 +147,47 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Convert amplitude to dB for professional-grade threshold
         let dB = amplitudeTodB(amplitude)
 
-        // Only process if signal is above dB threshold (professional tuner standard)
+        // Check if signal is above dB threshold
         guard dB > minimumDB else {
-            // If signal is too weak, reset to default state
-            if detectedNote != "--" {
-                detectedFrequency = 0.0
-                detectedNote = "--"
-                detectedCents = 0.0
-                recentFrequencies.removeAll()
-            }
+            // Signal dropped - keep previous note but mark as inactive
+            isSignalActive = false
+            sustainedInTuneTime = 0.0
+            recentFrequencies.removeAll()
+            recentAmplitudes.removeAll()
+            signalStartTime = nil
             return
         }
 
         // Only process valid frequencies (~20Hz - 20kHz)
         // Musical range is typically 27.5 Hz (A0) to 4186 Hz (C8)
         guard frequency > 20 && frequency < 5000 else {
+            isSignalActive = false
+            recentAmplitudes.removeAll()
+            signalStartTime = nil
+            return
+        }
+
+        // Track amplitude history for stability check
+        recentAmplitudes.append(amplitude)
+        if recentAmplitudes.count > amplitudeWindowSize {
+            recentAmplitudes.removeFirst()
+        }
+
+        // Require amplitude stability (real notes don't fluctuate wildly)
+        guard recentAmplitudes.count >= 3 else {
+            isSignalActive = false
+            return
+        }
+
+        let avgAmplitude = recentAmplitudes.reduce(0, +) / Float(recentAmplitudes.count)
+        let amplitudeVariances = recentAmplitudes.map { abs($0 - avgAmplitude) / max(avgAmplitude, 0.0001) }
+        let maxVariance = amplitudeVariances.max() ?? 1.0
+
+        // Reject if amplitude varies more than threshold (filters background noise)
+        guard maxVariance < maxAmplitudeVariance else {
+            isSignalActive = false
+            recentFrequencies.removeAll()
+            signalStartTime = nil
             return
         }
 
@@ -166,8 +207,23 @@ class Tuner: ObservableObject, HasAudioEngine {
         let isStable = recentFrequencies.allSatisfy { abs($0 - avgFreq) < stabilityThreshold }
 
         guard isStable else {
+            signalStartTime = nil
             return
         }
+
+        // Check minimum sustained duration (prevents transient noise spikes)
+        if signalStartTime == nil {
+            signalStartTime = Date()
+        }
+
+        let sustainedDuration = Date().timeIntervalSince(signalStartTime!)
+        guard sustainedDuration >= minimumDuration else {
+            // Signal is stable but not sustained long enough yet
+            return
+        }
+
+        // Signal is active, stable, and sustained
+        isSignalActive = true
 
         // Apply smoothing to reduce jitter
         let smoothedFrequency = smoothFrequency(avgFreq)
@@ -183,6 +239,9 @@ class Tuner: ObservableObject, HasAudioEngine {
 
         detectedNote = note
         detectedCents = smoothedCents
+
+        // Track sustained in-tune time
+        updateSustainedTime(cents: smoothedCents)
     }
 
     /// Converts amplitude (0-1 range) to decibels
@@ -215,6 +274,22 @@ class Tuner: ObservableObject, HasAudioEngine {
         let smoothed = previousCents * (1.0 - centsSmoothingFactor) + newCents * centsSmoothingFactor
         previousCents = smoothed
         return smoothed
+    }
+
+    /// Updates the sustained in-tune time tracker
+    private func updateSustainedTime(cents: Double) {
+        let currentTime = Date()
+        let deltaTime = currentTime.timeIntervalSince(lastUpdateTime)
+        lastUpdateTime = currentTime
+
+        // Check if note is in tune (within threshold)
+        if abs(cents) < inTuneThreshold {
+            // In tune - accumulate time
+            sustainedInTuneTime += deltaTime
+        } else {
+            // Out of tune - reset
+            sustainedInTuneTime = 0.0
+        }
     }
 
     /// Converts a frequency in Hz to the nearest note name and cents offset
