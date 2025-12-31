@@ -39,9 +39,20 @@ class Tuner: ObservableObject, HasAudioEngine {
     @Published var amplitude: Double = 0.0
 
     // MARK: - Private Properties
-    private let minimumAmplitude: Float = 0.1
-    private let smoothingFactor: Double = 0.3
+
+    // dB threshold for professional tuning accuracy
+    private let minimumDB: Float = -30.0  // Calibrated threshold for note detection
+
+    // Smoothing parameters
+    private let frequencySmoothingFactor: Double = 0.15  // Smoother frequency transitions
+    private let centsSmoothingFactor: Double = 0.2  // Smoother cents display
     private var previousFrequency: Double = 0.0
+    private var previousCents: Double = 0.0
+
+    // Signal stability validation
+    private var recentFrequencies: [Double] = []
+    private let stabilityWindowSize = 4  // Require 4 consecutive similar readings
+    private let stabilityThreshold: Double = 10.0  // Within 10 Hz tolerance
 
     // Note names for conversion
     private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
@@ -83,8 +94,6 @@ class Tuner: ObservableObject, HasAudioEngine {
             }
 
             tracker.start()
-
-            print("Tuner started successfully")
         } catch {
             print("Error starting tuner: \(error.localizedDescription)")
         }
@@ -120,13 +129,17 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Update amplitude
         self.amplitude = Double(amplitude)
 
-        // Only process if amplitude is above threshold (filter out noise/silence)
-        guard amplitude > minimumAmplitude else {
+        // Convert amplitude to dB for professional-grade threshold
+        let dB = amplitudeTodB(amplitude)
+
+        // Only process if signal is above dB threshold (professional tuner standard)
+        guard dB > minimumDB else {
             // If signal is too weak, reset to default state
             if detectedNote != "--" {
                 detectedFrequency = 0.0
                 detectedNote = "--"
                 detectedCents = 0.0
+                recentFrequencies.removeAll()
             }
             return
         }
@@ -137,8 +150,27 @@ class Tuner: ObservableObject, HasAudioEngine {
             return
         }
 
+        // Add to recent frequencies for stability validation
+        recentFrequencies.append(Double(frequency))
+        if recentFrequencies.count > stabilityWindowSize {
+            recentFrequencies.removeFirst()
+        }
+
+        // Require stable signal before updating display
+        guard recentFrequencies.count >= stabilityWindowSize else {
+            return
+        }
+
+        // Check if frequencies are stable (all within threshold of average)
+        let avgFreq = recentFrequencies.reduce(0, +) / Double(recentFrequencies.count)
+        let isStable = recentFrequencies.allSatisfy { abs($0 - avgFreq) < stabilityThreshold }
+
+        guard isStable else {
+            return
+        }
+
         // Apply smoothing to reduce jitter
-        let smoothedFrequency = smoothFrequency(Double(frequency))
+        let smoothedFrequency = smoothFrequency(avgFreq)
 
         // Update detected frequency
         detectedFrequency = smoothedFrequency
@@ -146,8 +178,19 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Convert frequency to note and cents
         let (note, cents) = frequencyToNoteAndCents(frequency: smoothedFrequency)
 
+        // Apply smoothing to cents for smooth dot movement
+        let smoothedCents = smoothCents(cents)
+
         detectedNote = note
-        detectedCents = cents
+        detectedCents = smoothedCents
+    }
+
+    /// Converts amplitude (0-1 range) to decibels
+    private func amplitudeTodB(_ amplitude: Float) -> Float {
+        // Prevent log of zero
+        let clampedAmplitude = max(amplitude, 0.00001)
+        // Convert to dB: dB = 20 * log10(amplitude)
+        return 20.0 * log10(clampedAmplitude)
     }
 
     /// Smooths frequency changes to reduce display jitter
@@ -157,8 +200,20 @@ class Tuner: ObservableObject, HasAudioEngine {
             return newFrequency
         }
 
-        let smoothed = previousFrequency * (1.0 - smoothingFactor) + newFrequency * smoothingFactor
+        let smoothed = previousFrequency * (1.0 - frequencySmoothingFactor) + newFrequency * frequencySmoothingFactor
         previousFrequency = smoothed
+        return smoothed
+    }
+
+    /// Smooths cents changes for smooth dot movement
+    private func smoothCents(_ newCents: Double) -> Double {
+        if previousCents == 0.0 {
+            previousCents = newCents
+            return newCents
+        }
+
+        let smoothed = previousCents * (1.0 - centsSmoothingFactor) + newCents * centsSmoothingFactor
+        previousCents = smoothed
         return smoothed
     }
 

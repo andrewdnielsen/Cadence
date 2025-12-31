@@ -11,30 +11,26 @@ struct BasicTunerView: View {
     @ObservedObject var tuner: Tuner
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            // Note Display Card
-            NoteDisplayCard(tuner: tuner)
+        VStack {
+            Spacer()
 
-            // Tuning Indicator
-            TuningIndicator(cents: tuner.detectedCents)
-                .padding(.horizontal, Theme.Spacing.xl)
+            // Compact circular tuner with arc and moving dot
+            CompactCircularTuner(
+                note: tuner.detectedNote,
+                cents: tuner.detectedCents
+            )
+            .frame(height: 280)
+            .padding(.horizontal, Theme.Spacing.xl)
 
-            // Cents Display
-            CentsDisplay(cents: tuner.detectedCents)
-
-            // Frequency Display
-            FrequencyDisplay(frequency: tuner.detectedFrequency)
+            Spacer()
         }
-        .frame(maxHeight: .infinity, alignment: .top)
-        .padding(.top, Theme.Spacing.lg)
+        .frame(maxHeight: .infinity)
         .onAppear {
-            // Auto-start tuner when view appears
             if !tuner.isListening {
                 tuner.isListening = true
             }
         }
         .onDisappear {
-            // Stop tuner when view disappears
             if tuner.isListening {
                 tuner.isListening = false
             }
@@ -42,289 +38,97 @@ struct BasicTunerView: View {
     }
 }
 
-// MARK: - Note Display Card
+// MARK: - Compact Circular Tuner
 
-struct NoteDisplayCard: View {
-    @ObservedObject var tuner: Tuner
-
-    var body: some View {
-        VStack(spacing: Theme.Spacing.sm) {
-            Text("NOTE")
-                .font(.system(size: Theme.Typography.caption, weight: .medium))
-                .foregroundColor(Theme.Colors.textSecondary)
-                .tracking(2)
-
-            Text(tuner.detectedNote)
-                .font(.system(size: Theme.Typography.displayHuge, weight: .bold))
-                .foregroundColor(Theme.Colors.textPrimary)
-                .monospacedDigit()
-                .frame(minWidth: 120)
-        }
-        .cardStyle(padding: Theme.Spacing.xl)
-    }
-}
-
-// MARK: - Tuning Indicator
-
-struct TuningIndicator: View {
+struct CompactCircularTuner: View {
+    let note: String
     let cents: Double
 
-    // Tuning states
-    private var tuningState: TuningState {
-        if abs(cents) < 5 {
-            return .inTune
-        } else if cents > 0 {
-            return .sharp
+    // Calculate angle for the dot position
+    // -50 cents = -90°, 0 cents = 0° (top), +50 cents = +90°
+    private var dotAngle: Double {
+        let clampedCents = max(-50, min(50, cents))
+        return (clampedCents / 50.0) * 90.0
+    }
+
+    // Dot color based on cents offset
+    private var dotColor: Color {
+        let absCents = abs(cents)
+        if absCents < 5 {
+            return .green
+        } else if absCents < 25 {
+            return .yellow
         } else {
-            return .flat
+            return .red
         }
-    }
-
-    // Calculate needle position (-1 to 1, clamped at ±50 cents)
-    private var needlePosition: Double {
-        let clamped = max(-50, min(50, cents))
-        return clamped / 50.0
     }
 
     var body: some View {
-        VStack(spacing: Theme.Spacing.md) {
-            // Visual indicator with needle
-            GeometryReader { geometry in
-                ZStack(alignment: .bottom) {
-                    // Background gradient bar
-                    HStack(spacing: 0) {
-                        // Flat side (red gradient)
-                        LinearGradient(
-                            colors: [
-                                Color.red.opacity(0.8),
-                                Color.orange.opacity(0.6)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
+        GeometryReader { geometry in
+            let size = min(geometry.size.width, geometry.size.height)
+            let radius = size * 0.42
+            let dotRadius: CGFloat = 10
 
-                        // In-tune center (green)
-                        Color.green
-                            .frame(width: geometry.size.width * 0.2)
-
-                        // Sharp side (yellow/red gradient)
-                        LinearGradient(
-                            colors: [
-                                Color.orange.opacity(0.6),
-                                Color.red.opacity(0.8)
-                            ],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    }
-                    .frame(height: 12)
-                    .cornerRadius(Theme.CornerRadius.sm)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: Theme.CornerRadius.sm)
-                            .stroke(Theme.Colors.surface, lineWidth: 2)
-                    )
-
-                    // Tick marks
-                    HStack(spacing: 0) {
-                        ForEach(0..<11) { index in
-                            Rectangle()
-                                .fill(Theme.Colors.textSecondary.opacity(0.3))
-                                .frame(width: 1, height: index == 5 ? 20 : 12)
-
-                            if index < 10 {
-                                Spacer()
-                            }
-                        }
-                    }
-                    .offset(y: -6)
-
-                    // Needle indicator
-                    NeedleIndicator()
-                        .offset(x: needlePosition * (geometry.size.width / 2) * 0.9)
-                        .animation(Theme.Animation.smoothSpring, value: needlePosition)
-                }
-                .frame(height: 40)
-            }
-            .frame(height: 40)
-
-            // Tuning state label
-            HStack(spacing: Theme.Spacing.xs) {
-                Image(systemName: tuningStateIcon)
-                    .font(.system(size: Theme.Typography.body, weight: .semibold))
-
-                Text(tuningStateText)
-                    .font(.system(size: Theme.Typography.body, weight: .semibold))
-            }
-            .foregroundColor(tuningStateColor)
-            .animation(Theme.Animation.smoothSpring, value: tuningState)
-        }
-        .padding(.vertical, Theme.Spacing.md)
-        .cardStyle()
-    }
-
-    private var tuningStateIcon: String {
-        switch tuningState {
-        case .inTune: return "checkmark.circle.fill"
-        case .sharp: return "arrow.up.circle.fill"
-        case .flat: return "arrow.down.circle.fill"
-        }
-    }
-
-    private var tuningStateText: String {
-        switch tuningState {
-        case .inTune: return "IN TUNE"
-        case .sharp: return "SHARP"
-        case .flat: return "FLAT"
-        }
-    }
-
-    private var tuningStateColor: Color {
-        switch tuningState {
-        case .inTune: return .green
-        case .sharp: return .orange
-        case .flat: return .orange
-        }
-    }
-}
-
-// MARK: - Needle Indicator
-
-struct NeedleIndicator: View {
-    var body: some View {
-        VStack(spacing: 0) {
-            // Triangle pointer
-            Triangle()
-                .fill(Theme.Colors.textPrimary)
-                .frame(width: 12, height: 8)
-
-            // Vertical line
-            Rectangle()
-                .fill(Theme.Colors.textPrimary)
-                .frame(width: 2, height: 25)
-        }
-        .shadow(color: .black.opacity(0.3), radius: 2, x: 0, y: 1)
-    }
-}
-
-// MARK: - Triangle Shape
-
-struct Triangle: Shape {
-    func path(in rect: CGRect) -> Path {
-        var path = Path()
-        path.move(to: CGPoint(x: rect.midX, y: rect.maxY))
-        path.addLine(to: CGPoint(x: rect.minX, y: rect.minY))
-        path.addLine(to: CGPoint(x: rect.maxX, y: rect.minY))
-        path.closeSubpath()
-        return path
-    }
-}
-
-// MARK: - Cents Display
-
-struct CentsDisplay: View {
-    let cents: Double
-
-    private var formattedCents: String {
-        let rounded = Int(round(cents))
-        return rounded > 0 ? "+\(rounded)" : "\(rounded)"
-    }
-
-    var body: some View {
-        VStack(spacing: Theme.Spacing.xs) {
-            Text("CENTS")
-                .font(.system(size: Theme.Typography.caption, weight: .medium))
-                .foregroundColor(Theme.Colors.textSecondary)
-                .tracking(2)
-
-            Text(formattedCents)
-                .font(.system(size: Theme.Typography.displayMedium, weight: .bold))
-                .foregroundColor(Theme.Colors.textPrimary)
-                .monospacedDigit()
-                .animation(.none, value: cents)
-        }
-    }
-}
-
-// MARK: - Frequency Display
-
-struct FrequencyDisplay: View {
-    let frequency: Double
-
-    private var formattedFrequency: String {
-        frequency > 0 ? String(format: "%.1f Hz", frequency) : "-- Hz"
-    }
-
-    var body: some View {
-        HStack(spacing: Theme.Spacing.xs) {
-            Image(systemName: "waveform")
-                .font(.system(size: Theme.Typography.caption))
-
-            Text(formattedFrequency)
-                .font(.system(size: Theme.Typography.caption, weight: .medium))
-        }
-        .foregroundColor(Theme.Colors.textSecondary)
-    }
-}
-
-// MARK: - Tuner Transport Button
-
-struct TunerTransportButton: View {
-    @ObservedObject var tuner: Tuner
-    @State private var isPressed = false
-
-    var body: some View {
-        let buttonSize: CGFloat = 90
-        let iconSize: CGFloat = 36
-
-        Button(action: {
-            tuner.toggle()
-        }) {
             ZStack {
+                // Grey arc line (180° semicircle)
                 Circle()
-                    .fill(tuner.isListening ? Color.red : Theme.Colors.primary)
-                    .frame(width: buttonSize, height: buttonSize)
-                    .shadow(
-                        color: (tuner.isListening ? Color.red : Theme.Colors.primary).opacity(0.4),
-                        radius: Theme.Shadow.large.radius,
-                        x: 0,
-                        y: Theme.Shadow.large.y
-                    )
+                    .trim(from: 0.25, to: 0.75)  // Bottom half removed
+                    .stroke(Theme.Colors.surface, lineWidth: 10)
+                    .frame(width: radius * 2, height: radius * 2)
+                    .rotationEffect(.degrees(90))  // Rotate so open end is at bottom
 
-                Image(systemName: tuner.isListening ? "stop.fill" : "mic.fill")
-                    .font(.system(size: iconSize, weight: .bold))
-                    .foregroundColor(.white)
+                // Moving dot along the arc (only shown when note detected)
+                if note != "--" {
+                    Circle()
+                        .fill(dotColor)
+                        .frame(width: dotRadius * 2, height: dotRadius * 2)
+                        .shadow(color: dotColor.opacity(0.6), radius: 8, x: 0, y: 0)
+                        .offset(x: calculateDotX(angle: dotAngle, radius: radius),
+                               y: calculateDotY(angle: dotAngle, radius: radius))
+                        .animation(Theme.Animation.smoothSpring, value: dotAngle)
+                        .animation(Theme.Animation.smoothSpring, value: dotColor)
+                }
+
+                // Note name and cents inside the arc
+                VStack(spacing: Theme.Spacing.xs) {
+                    Text(note)
+                        .font(.system(size: 56, weight: .bold))
+                        .foregroundColor(Theme.Colors.textPrimary)
+                        .monospacedDigit()
+
+                    if note != "--" {
+                        Text(formattedCents)
+                            .font(.system(size: 20, weight: .medium))
+                            .foregroundColor(Theme.Colors.textSecondary)
+                            .monospacedDigit()
+                    }
+                }
+                .offset(y: radius * 0.15)  // Slightly below center for better visual balance
             }
-            .scaleEffect(isPressed ? 0.9 : 1.0)
+            .frame(width: size, height: size)
+            .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
         }
-        .buttonStyle(PlainButtonStyle())
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 0)
-                .onChanged { _ in
-                    if !isPressed {
-                        withAnimation(Theme.Animation.spring) {
-                            isPressed = true
-                        }
-                    }
-                }
-                .onEnded { _ in
-                    withAnimation(Theme.Animation.spring) {
-                        isPressed = false
-                    }
-                }
-        )
-        .animation(Theme.Animation.spring, value: tuner.isListening)
-        .accessibilityLabel(tuner.isListening ? "Stop tuner" : "Start tuner")
-        .accessibilityValue(tuner.isListening ? "Listening" : "Stopped")
-        .accessibilityHint("Double tap to toggle the tuner")
     }
-}
 
-// MARK: - Tuning State Enum
+    // Calculate X position of dot on the arc
+    private func calculateDotX(angle: Double, radius: CGFloat) -> CGFloat {
+        return radius * sin(angle * .pi / 180.0)
+    }
 
-enum TuningState {
-    case inTune
-    case sharp
-    case flat
+    // Calculate Y position of dot on the arc
+    private func calculateDotY(angle: Double, radius: CGFloat) -> CGFloat {
+        return -radius * cos(angle * .pi / 180.0)
+    }
+
+    // Format cents with +/- sign
+    private var formattedCents: String {
+        if cents == 0 {
+            return "0 cents"
+        }
+        let rounded = Int(round(cents))
+        let sign = rounded > 0 ? "+" : ""
+        return "\(sign)\(rounded) cents"
+    }
 }
 
 // MARK: - Preview
