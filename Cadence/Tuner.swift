@@ -43,27 +43,27 @@ class Tuner: ObservableObject, HasAudioEngine {
     // MARK: - Private Properties
 
     // dB threshold for professional tuning accuracy (balanced for noise rejection)
-    private let minimumDB: Float = -32.0  // Filters background noise while responsive to instruments
+    private let minimumDB: Float = -40.0  // Accepts softer whistles/instruments while rejecting quiet noise
 
-    // Smoothing parameters (reduced for faster response like TE Tuner)
-    private let frequencySmoothingFactor: Double = 0.3  // Faster frequency updates
-    private let centsSmoothingFactor: Double = 0.35  // Faster cents display
+    // Smoothing parameters (highly reduced for near-instant response <50ms)
+    private let frequencySmoothingFactor: Double = 0.7  // Near-instant frequency updates
+    private let centsSmoothingFactor: Double = 0.75  // Near-instant cents display
     private var previousFrequency: Double = 0.0
     private var previousCents: Double = 0.0
 
-    // Signal stability validation (balanced for noise rejection + responsiveness)
+    // Signal stability validation (minimal for maximum responsiveness)
     private var recentFrequencies: [Double] = []
-    private let stabilityWindowSize = 3  // 3 readings filters noise spikes (~50-100ms)
-    private let stabilityThreshold: Double = 8.0  // Real notes stable within 8 Hz
+    private let stabilityWindowSize = 1  // Single reading for instant response
+    private let stabilityThreshold: Double = 15.0  // Relaxed threshold for faster updates
 
-    // Amplitude stability validation (filters fluctuating background noise)
+    // Amplitude stability validation (relaxed for faster response)
     private var recentAmplitudes: [Float] = []
-    private let amplitudeWindowSize = 4  // Track recent amplitudes
-    private let maxAmplitudeVariance: Float = 0.3  // Reject if amplitude varies >30%
+    private let amplitudeWindowSize = 1  // Minimal tracking for speed
+    private let maxAmplitudeVariance: Float = 0.6  // Relaxed threshold
 
-    // Minimum sustained duration (prevents transient noise spikes)
+    // Minimum sustained duration (minimal for near-instant response)
     private var signalStartTime: Date?
-    private let minimumDuration: TimeInterval = 0.15  // 150ms sustained signal required
+    private let minimumDuration: TimeInterval = 0.03  // 30ms sustained signal for <50ms total latency
 
     // Sustained in-tune tracking
     private var lastUpdateTime: Date = Date()
@@ -174,7 +174,7 @@ class Tuner: ObservableObject, HasAudioEngine {
         }
 
         // Require amplitude stability (real notes don't fluctuate wildly)
-        guard recentAmplitudes.count >= 3 else {
+        guard recentAmplitudes.count >= amplitudeWindowSize else {
             isSignalActive = false
             return
         }
@@ -186,7 +186,7 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Reject if amplitude varies more than threshold (filters background noise)
         guard maxVariance < maxAmplitudeVariance else {
             isSignalActive = false
-            recentFrequencies.removeAll()
+            // Don't reset frequency buffer - allows frequency stability to build independently
             signalStartTime = nil
             return
         }

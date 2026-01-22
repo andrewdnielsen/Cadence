@@ -116,22 +116,22 @@ struct CompactCircularTuner: View {
             ZStack {
                 // Grey arc line (180° semicircle)
                 Circle()
-                    .trim(from: 0.25, to: 0.75)
+                    .trim(from: 0.0, to: 0.5)
                     .stroke(Theme.Colors.surface, lineWidth: 10)
                     .frame(width: radius * 2, height: radius * 2)
-                    .rotationEffect(.degrees(90))
+                    .rotationEffect(.degrees(180))
 
                 // Inner green arc (grows when sustained in tune)
                 if innerArcStroke > 0 {
                     Circle()
-                        .trim(from: 0.25, to: 0.75)
+                        .trim(from: 0.0, to: 0.5)
                         .stroke(Color.green, lineWidth: innerArcStroke)
                         .frame(width: radius * 2, height: radius * 2)  // Same radius as gray arc to overlay
-                        .rotationEffect(.degrees(90))
+                        .rotationEffect(.degrees(180))
                         .shadow(color: Color.green.opacity(innerArcGlow), radius: 6, x: 0, y: 0)
                         .shadow(color: Color.green.opacity(innerArcGlow * 0.6), radius: 12, x: 0, y: 0)
                         .shadow(color: Color.green.opacity(innerArcGlow * 0.3), radius: 20, x: 0, y: 0)
-                        .animation(Theme.Animation.smoothSpring, value: innerArcStroke)
+                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: innerArcStroke)
                 }
 
                 // Center marker (green triangle at top)
@@ -151,10 +151,10 @@ struct CompactCircularTuner: View {
                         .offset(x: calculateDotX(angle: dotAngle, radius: radius),
                                y: calculateDotY(angle: dotAngle, radius: radius))
                         .opacity(isSignalActive ? 1.0 : 0.3)  // Fade when signal drops
-                        .animation(Theme.Animation.smoothSpring, value: dotAngle)
-                        .animation(Theme.Animation.smoothSpring, value: dotColor)
-                        .animation(Theme.Animation.smoothSpring, value: dotSize)
-                        .animation(Theme.Animation.smoothSpring, value: isSignalActive)
+                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: dotAngle)
+                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: dotColor)
+                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: dotSize)
+                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: isSignalActive)
                 }
 
                 // Note name and cents inside the arc
@@ -174,7 +174,7 @@ struct CompactCircularTuner: View {
                     }
                     .monospacedDigit()
                     .opacity(isSignalActive ? 1.0 : 0.3)  // Dim when no signal
-                    .animation(Theme.Animation.smoothSpring, value: isSignalActive)
+                    .animation(.spring(response: 0.15, dampingFraction: 0.85), value: isSignalActive)
 
                     if note != "--" {
                         Text(formattedCents)
@@ -182,7 +182,7 @@ struct CompactCircularTuner: View {
                             .foregroundColor(Theme.Colors.textSecondary)
                             .monospacedDigit()
                             .opacity(isSignalActive ? 1.0 : 0.3)  // Dim when no signal
-                            .animation(Theme.Animation.smoothSpring, value: isSignalActive)
+                            .animation(.spring(response: 0.15, dampingFraction: 0.85), value: isSignalActive)
                     }
                 }
                 .offset(y: radius * 0.15)
