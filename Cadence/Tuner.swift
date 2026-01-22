@@ -42,8 +42,11 @@ class Tuner: ObservableObject, HasAudioEngine {
 
     // MARK: - Private Properties
 
-    // dB threshold for professional tuning accuracy (balanced for noise rejection)
-    private let minimumDB: Float = -40.0  // Accepts softer whistles/instruments while rejecting quiet noise
+    // Adaptive dB threshold for intelligent noise rejection
+    private let strictMinimumDB: Float = -38.0  // Strict threshold for initial detection (relaxed slightly)
+    private let relaxedMinimumDB: Float = -44.0  // Relaxed threshold once locked onto note
+    private var currentMinimumDB: Float = -38.0  // Current threshold (starts strict)
+    private var isLockedOnNote: Bool = false  // Track if we're locked onto a stable note
 
     // Smoothing parameters (highly reduced for near-instant response <50ms)
     private let frequencySmoothingFactor: Double = 0.7  // Near-instant frequency updates
@@ -51,15 +54,15 @@ class Tuner: ObservableObject, HasAudioEngine {
     private var previousFrequency: Double = 0.0
     private var previousCents: Double = 0.0
 
-    // Signal stability validation (minimal for maximum responsiveness)
+    // Signal stability validation (balanced for speed + noise rejection)
     private var recentFrequencies: [Double] = []
-    private let stabilityWindowSize = 1  // Single reading for instant response
-    private let stabilityThreshold: Double = 15.0  // Relaxed threshold for faster updates
+    private let stabilityWindowSize = 2  // 2 readings for fast but stable response
+    private let stabilityThreshold: Double = 5.0  // Real notes are stable within 5 Hz
 
-    // Amplitude stability validation (relaxed for faster response)
+    // Amplitude stability validation (strict for noise rejection)
     private var recentAmplitudes: [Float] = []
-    private let amplitudeWindowSize = 1  // Minimal tracking for speed
-    private let maxAmplitudeVariance: Float = 0.6  // Relaxed threshold
+    private let amplitudeWindowSize = 2  // Track recent amplitudes
+    private let maxAmplitudeVariance: Float = 0.3  // Reject if amplitude varies >30%
 
     // Minimum sustained duration (minimal for near-instant response)
     private var signalStartTime: Date?
@@ -147,23 +150,28 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Convert amplitude to dB for professional-grade threshold
         let dB = amplitudeTodB(amplitude)
 
-        // Check if signal is above dB threshold
-        guard dB > minimumDB else {
+        // Check if signal is above adaptive dB threshold
+        guard dB > currentMinimumDB else {
             // Signal dropped - keep previous note but mark as inactive
             isSignalActive = false
             sustainedInTuneTime = 0.0
             recentFrequencies.removeAll()
             recentAmplitudes.removeAll()
             signalStartTime = nil
+            // Reset to strict threshold when signal is lost
+            isLockedOnNote = false
+            currentMinimumDB = strictMinimumDB
             return
         }
 
-        // Only process valid frequencies (~20Hz - 20kHz)
-        // Musical range is typically 27.5 Hz (A0) to 4186 Hz (C8)
-        guard frequency > 20 && frequency < 5000 else {
+        // Only process musical frequencies (filters sub-bass and ultrasonic noise)
+        // Practical range: E2 (82 Hz) to C7 (2093 Hz) covers most instruments
+        guard frequency > 65 && frequency < 2000 else {
             isSignalActive = false
             recentAmplitudes.removeAll()
             signalStartTime = nil
+            isLockedOnNote = false
+            currentMinimumDB = strictMinimumDB
             return
         }
 
@@ -188,6 +196,8 @@ class Tuner: ObservableObject, HasAudioEngine {
             isSignalActive = false
             // Don't reset frequency buffer - allows frequency stability to build independently
             signalStartTime = nil
+            isLockedOnNote = false
+            currentMinimumDB = strictMinimumDB
             return
         }
 
@@ -208,6 +218,8 @@ class Tuner: ObservableObject, HasAudioEngine {
 
         guard isStable else {
             signalStartTime = nil
+            isLockedOnNote = false
+            currentMinimumDB = strictMinimumDB
             return
         }
 
@@ -224,6 +236,12 @@ class Tuner: ObservableObject, HasAudioEngine {
 
         // Signal is active, stable, and sustained
         isSignalActive = true
+
+        // Adaptive threshold: Once locked onto a note, relax threshold for softer playing
+        if !isLockedOnNote {
+            isLockedOnNote = true
+            currentMinimumDB = relaxedMinimumDB
+        }
 
         // Apply smoothing to reduce jitter
         let smoothedFrequency = smoothFrequency(avgFreq)
