@@ -78,34 +78,30 @@ struct CompactCircularTuner: View {
         }
     }
 
-    // Dot size based on sustained time (grows when held in tune)
+    // Dot size based on sustained time (grows slowly and dramatically)
     private var dotSize: CGFloat {
-        let baseSize: CGFloat = 14  // Reduced for better visual alignment with arc
-        let maxSize: CGFloat = 22
-        let growthFactor = min(sustainedTime / 1.5, 1.0)  // Max at 1.5 seconds
+        let baseSize: CGFloat = 14
+        let maxSize: CGFloat = 28  // Larger max size for dramatic growth
+        let growthFactor = min(sustainedTime / 3.0, 1.0)  // Slower growth over 3 seconds
         return baseSize + (maxSize - baseSize) * growthFactor
     }
 
-    // Glow radius based on sustained time
+    // Glow radius based on sustained time (more dramatic)
     private var glowRadius: CGFloat {
         let baseGlow: CGFloat = 8
-        let maxGlow: CGFloat = 16
-        let growthFactor = min(sustainedTime / 1.5, 1.0)
+        let maxGlow: CGFloat = 24  // Larger glow
+        let growthFactor = min(sustainedTime / 3.0, 1.0)  // Slower growth
         return baseGlow + (maxGlow - baseGlow) * growthFactor
     }
 
-    // Inner arc stroke width (grows when sustained in tune)
-    private var innerArcStroke: CGFloat {
-        let maxStroke: CGFloat = 6
-        let growthFactor = min(max(sustainedTime - 0.5, 0.0) / 1.0, 1.0)  // Starts after 0.5s
-        return maxStroke * growthFactor
+    // Glow intensity based on sustained time
+    private var glowIntensity: Double {
+        min(sustainedTime / 3.0, 1.0)
     }
 
-    // Inner arc glow intensity
-    private var innerArcGlow: Double {
-        let maxGlow = 0.8
-        let growthFactor = min(max(sustainedTime - 0.5, 0.0) / 1.0, 1.0)
-        return maxGlow * growthFactor
+    // Check if in tune
+    private var isInTune: Bool {
+        abs(cents) < 3.0
     }
 
     var body: some View {
@@ -121,40 +117,31 @@ struct CompactCircularTuner: View {
                     .frame(width: radius * 2, height: radius * 2)
                     .rotationEffect(.degrees(180))
 
-                // Inner green arc (grows when sustained in tune)
-                if innerArcStroke > 0 {
-                    Circle()
-                        .trim(from: 0.0, to: 0.5)
-                        .stroke(Color.green, lineWidth: innerArcStroke)
-                        .frame(width: radius * 2, height: radius * 2)  // Same radius as gray arc to overlay
-                        .rotationEffect(.degrees(180))
-                        .shadow(color: Color.green.opacity(innerArcGlow), radius: 6, x: 0, y: 0)
-                        .shadow(color: Color.green.opacity(innerArcGlow * 0.6), radius: 12, x: 0, y: 0)
-                        .shadow(color: Color.green.opacity(innerArcGlow * 0.3), radius: 20, x: 0, y: 0)
-                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: innerArcStroke)
-                }
-
                 // Center marker (green triangle at top)
                 Triangle()
                     .fill(Color.green)
                     .frame(width: 10, height: 10)
                     .offset(y: -radius - 12)
+                    .shadow(color: isInTune ? .green.opacity(0.6) : .clear, radius: 8)
+                    .scaleEffect(isInTune ? 1.2 : 1.0)
+                    .animation(.easeInOut(duration: 0.7), value: isInTune)
 
                 // Moving dot along the arc
                 if note != "--" {
                     Circle()
                         .fill(dotColor)
                         .frame(width: dotSize, height: dotSize)
-                        .shadow(color: dotColor.opacity(0.8), radius: 4, x: 0, y: 0)  // Tight inner glow
-                        .shadow(color: dotColor.opacity(0.5), radius: glowRadius, x: 0, y: 0)  // Medium glow
-                        .shadow(color: dotColor.opacity(0.2), radius: glowRadius * 1.5, x: 0, y: 0)  // Soft outer glow
-                        .offset(x: calculateDotX(angle: dotAngle, radius: radius),
-                               y: calculateDotY(angle: dotAngle, radius: radius))
+                        // Enhanced layered glow effect
+                        .shadow(color: dotColor.opacity(0.9), radius: 4, x: 0, y: 0)  // Tight inner glow
+                        .shadow(color: dotColor.opacity(0.6 * glowIntensity), radius: glowRadius * 0.5, x: 0, y: 0)  // Medium glow
+                        .shadow(color: dotColor.opacity(0.4 * glowIntensity), radius: glowRadius, x: 0, y: 0)  // Outer glow
+                        .shadow(color: dotColor.opacity(0.2 * glowIntensity), radius: glowRadius * 1.5, x: 0, y: 0)  // Soft halo
+                        .modifier(ArcPositionModifier(angle: dotAngle, radius: radius))
                         .opacity(isSignalActive ? 1.0 : 0.3)  // Fade when signal drops
-                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: dotAngle)
-                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: dotColor)
-                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: dotSize)
-                        .animation(.spring(response: 0.15, dampingFraction: 0.85), value: isSignalActive)
+                        .animation(.spring(duration: 0.3, bounce: 0.15), value: dotAngle)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: dotSize)
+                        .animation(.spring(response: 0.4, dampingFraction: 0.8), value: glowRadius)
+                        .animation(.easeInOut(duration: 0.2), value: isSignalActive)
                 }
 
                 // Note name and cents inside the arc
@@ -174,7 +161,7 @@ struct CompactCircularTuner: View {
                     }
                     .monospacedDigit()
                     .opacity(isSignalActive ? 1.0 : 0.3)  // Dim when no signal
-                    .animation(.spring(response: 0.15, dampingFraction: 0.85), value: isSignalActive)
+                    .animation(.easeInOut(duration: 0.2), value: isSignalActive)
 
                     if note != "--" {
                         Text(formattedCents)
@@ -182,7 +169,7 @@ struct CompactCircularTuner: View {
                             .foregroundColor(Theme.Colors.textSecondary)
                             .monospacedDigit()
                             .opacity(isSignalActive ? 1.0 : 0.3)  // Dim when no signal
-                            .animation(.spring(response: 0.15, dampingFraction: 0.85), value: isSignalActive)
+                            .animation(.easeInOut(duration: 0.2), value: isSignalActive)
                     }
                 }
                 .offset(y: radius * 0.15)
@@ -210,6 +197,27 @@ struct CompactCircularTuner: View {
         let rounded = Int(round(cents))
         let sign = rounded > 0 ? "+" : ""
         return "\(sign)\(rounded) cents"
+    }
+}
+
+// MARK: - Arc Position Modifier
+
+/// Custom modifier that positions view along an arc by animating the angle
+/// This ensures the view always follows the arc curve, never cuts across
+struct ArcPositionModifier: AnimatableModifier {
+    var angle: Double  // This gets interpolated by SwiftUI
+    let radius: CGFloat
+
+    var animatableData: Double {
+        get { angle }
+        set { angle = newValue }
+    }
+
+    func body(content: Content) -> some View {
+        content.offset(
+            x: radius * sin(angle * .pi / 180.0),
+            y: -radius * cos(angle * .pi / 180.0)
+        )
     }
 }
 

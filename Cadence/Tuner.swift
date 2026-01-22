@@ -90,9 +90,15 @@ class Tuner: ObservableObject {
 
     /// Starts the tuner and begins listening for audio input
     func start() {
+        // Ensure audio session is active before starting pitch detection
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setActive(true)
+        } catch {
+            print("Warning: Could not activate audio session: \(error.localizedDescription)")
+        }
+
         pitchEngine.start()
-        print("Tuner started with Tuna engine")
-        print("Initial level threshold: \(pitchEngine.levelThreshold)")
     }
 
     /// Stops the tuner and stops listening for audio input
@@ -109,8 +115,6 @@ class Tuner: ObservableObject {
 
         // Reset internal state
         resetInternalState()
-
-        print("Tuner stopped")
     }
 
     /// Toggles the tuner on/off
@@ -122,7 +126,6 @@ class Tuner: ObservableObject {
 
     /// Handles pitch detection errors
     private func handlePitchError(_ error: Error) {
-        print("Pitch error: \(error)")
         // Signal dropped or level too low - keep previous note but mark as inactive
         isSignalActive = false
         sustainedInTuneTime = 0.0
@@ -143,14 +146,11 @@ class Tuner: ObservableObject {
         let frequency = Float(pitch.frequency)
         let signalLevel = pitchEngine.signalLevel  // Already in dB format from Tuna!
 
-        print("Pitch detected - Freq: \(frequency) Hz, Level dB: \(signalLevel)")
-
         // Update amplitude for display (convert from dB to 0-1 range for UI)
         self.amplitude = Double(pow(10.0, signalLevel / 20.0))
 
         // signalLevel is already in dB format, use directly
         let dB = signalLevel
-        print("dB: \(dB), threshold: \(currentMinimumDB)")
 
         // Check if signal is above adaptive dB threshold
         guard dB > currentMinimumDB else {
