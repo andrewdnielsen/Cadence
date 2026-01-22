@@ -1,5 +1,5 @@
 {
-  "originHash" : "14ab5a29a78f32c13e8f628633ce043bedf4639b4eb08fe4b61802c64e7fbf8b",
+  "originHash" : "1219b8550367512986dc28e3614a7b2564cecec7684e8e7c6d51e9afa48007cc",
   "pins" : [
     {
       "identity" : "audiokit",
@@ -38,15 +38,6 @@
       }
     },
     {
-      "identity" : "kissfft",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/KissFFT",
-      "state" : {
-        "revision" : "dd0636e151724b8ba2e0908eba4d99a6ff24d00c",
-        "version" : "1.0.0"
-      }
-    },
-    {
       "identity" : "rive-ios",
       "kind" : "remoteSourceControl",
       "location" : "https://github.com/rive-app/rive-ios",
@@ -56,21 +47,12 @@
       }
     },
     {
-      "identity" : "soundpipeaudiokit",
+      "identity" : "tuna",
       "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/SoundpipeAudioKit.git",
+      "location" : "https://github.com/alladinian/Tuna.git",
       "state" : {
-        "revision" : "efc0d67d3e19578b84d47cac4df72c497fb2173e",
-        "version" : "5.7.3"
-      }
-    },
-    {
-      "identity" : "tonic",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/Tonic",
-      "state" : {
-        "revision" : "227c89ea047f928787bec571e487239547f21fe6",
-        "version" : "2.1.0"
+        "revision" : "cfcfaf9e6e0d605b242c91f1b3decc9486c1b173",
+        "version" : "0.9.1"
       }
     }
   ],

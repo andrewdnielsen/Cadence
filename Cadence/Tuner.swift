@@ -3,24 +3,18 @@
 //  Cadence
 //
 //  Created by Claude Code on 2025-12-21.
+//  Rewritten to use Tuna library for near-instant pitch detection
 //
 
 import Foundation
 import AVFoundation
-import AudioKit
-import AudioKitEX
-import SoundpipeAudioKit
 import SwiftUI
+import Tuna
 
-class Tuner: ObservableObject, HasAudioEngine {
+class Tuner: ObservableObject {
 
-    // MARK: - Audio Engine Components
-    let engine = AudioEngine()
-
-    private let mic: AudioEngine.InputNode
-    private let tappableNode: Fader
-    private let silence: Fader
-    private var tracker: PitchTap!
+    // MARK: - Pitch Engine
+    private var pitchEngine: PitchEngine!
 
     // MARK: - Published Properties
     @Published var isListening = false {
@@ -43,58 +37,51 @@ class Tuner: ObservableObject, HasAudioEngine {
     // MARK: - Private Properties
 
     // Adaptive dB threshold for intelligent noise rejection
-    private let strictMinimumDB: Float = -38.0  // Strict threshold for initial detection (relaxed slightly)
+    private let strictMinimumDB: Float = -38.0  // Strict threshold for initial detection
     private let relaxedMinimumDB: Float = -44.0  // Relaxed threshold once locked onto note
     private var currentMinimumDB: Float = -38.0  // Current threshold (starts strict)
     private var isLockedOnNote: Bool = false  // Track if we're locked onto a stable note
 
-    // Smoothing parameters (highly reduced for near-instant response <50ms)
-    private let frequencySmoothingFactor: Double = 0.7  // Near-instant frequency updates
-    private let centsSmoothingFactor: Double = 0.75  // Near-instant cents display
+    // Smoothing parameters (optimized for near-instant response)
+    private let frequencySmoothingFactor: Double = 0.7  // Fast frequency updates
+    private let centsSmoothingFactor: Double = 0.75  // Fast cents display
     private var previousFrequency: Double = 0.0
     private var previousCents: Double = 0.0
 
-    // Signal stability validation (balanced for speed + noise rejection)
+    // Signal stability validation (minimal for maximum speed)
     private var recentFrequencies: [Double] = []
-    private let stabilityWindowSize = 2  // 2 readings for fast but stable response
-    private let stabilityThreshold: Double = 5.0  // Real notes are stable within 5 Hz
+    private let stabilityWindowSize = 1  // Single reading for instant response
+    private let stabilityThreshold: Double = 8.0  // Relaxed for speed
 
-    // Amplitude stability validation (strict for noise rejection)
+    // Amplitude stability validation
     private var recentAmplitudes: [Float] = []
-    private let amplitudeWindowSize = 2  // Track recent amplitudes
-    private let maxAmplitudeVariance: Float = 0.3  // Reject if amplitude varies >30%
+    private let amplitudeWindowSize = 1  // Minimal tracking for speed
+    private let maxAmplitudeVariance: Float = 0.4  // Relaxed for speed
 
-    // Minimum sustained duration (minimal for near-instant response)
+    // Minimum sustained duration (optimized for speed)
     private var signalStartTime: Date?
-    private let minimumDuration: TimeInterval = 0.03  // 30ms sustained signal for <50ms total latency
+    private let minimumDuration: TimeInterval = 0.015  // 15ms for near-instant response
 
     // Sustained in-tune tracking
     private var lastUpdateTime: Date = Date()
     private let inTuneThreshold: Double = 3.0  // Within 3 cents is "in tune"
 
-    // Note names for conversion
-    private let noteNames = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
-
     // MARK: - Initialization
     init() {
-        // Get microphone input
-        guard let input = engine.input else {
-            fatalError("Audio input not available")
-        }
-
-        mic = input
-
-        // Create fader chain to prevent feedback
-        tappableNode = Fader(mic)
-        silence = Fader(tappableNode, gain: 0)
-        engine.output = silence
-
-        // Set up pitch tracking
-        tracker = PitchTap(mic) { [weak self] pitch, amplitude in
+        // Initialize Tuna pitch engine with YIN algorithm (fastest and most accurate)
+        pitchEngine = PitchEngine(
+            bufferSize: 4096,  // Default buffer size
+            estimationStrategy: .yin  // YIN algorithm for monophonic pitch detection
+        ) { [weak self] result in
             guard let self = self else { return }
 
-            DispatchQueue.main.async {
-                self.processPitch(frequency: pitch[0], amplitude: amplitude[0])
+            // Process result on main queue (Tuna already dispatches to main)
+            switch result {
+            case .success(let pitch):
+                self.processPitch(pitch: pitch)
+            case .failure(let error):
+                // Handle errors (e.g., level below threshold)
+                self.handlePitchError(error)
             }
         }
     }
@@ -103,34 +90,25 @@ class Tuner: ObservableObject, HasAudioEngine {
 
     /// Starts the tuner and begins listening for audio input
     func start() {
-        do {
-            // Audio session is configured app-wide in CadenceApp to support
-            // simultaneous playback (metronome) and recording (tuner)
-
-            if !engine.avEngine.isRunning {
-                try engine.start()
-            }
-
-            tracker.start()
-        } catch {
-            print("Error starting tuner: \(error.localizedDescription)")
-        }
+        pitchEngine.start()
+        print("Tuner started with Tuna engine")
+        print("Initial level threshold: \(pitchEngine.levelThreshold)")
     }
 
     /// Stops the tuner and stops listening for audio input
     func stop() {
-        tracker.stop()
-
-        // Audio session remains active for app-wide use (metronome may still be playing)
-        // It will be deactivated when the app terminates
+        pitchEngine.stop()
 
         // Reset displayed values
-        DispatchQueue.main.async { [weak self] in
-            self?.detectedFrequency = 0.0
-            self?.detectedNote = "--"
-            self?.detectedCents = 0.0
-            self?.amplitude = 0.0
-        }
+        detectedFrequency = 0.0
+        detectedNote = "--"
+        detectedCents = 0.0
+        amplitude = 0.0
+        isSignalActive = false
+        sustainedInTuneTime = 0.0
+
+        // Reset internal state
+        resetInternalState()
 
         print("Tuner stopped")
     }
@@ -142,25 +120,44 @@ class Tuner: ObservableObject, HasAudioEngine {
 
     // MARK: - Private Methods
 
-    /// Processes the detected pitch and updates published properties
-    private func processPitch(frequency: Float, amplitude: Float) {
-        // Update amplitude
-        self.amplitude = Double(amplitude)
+    /// Handles pitch detection errors
+    private func handlePitchError(_ error: Error) {
+        print("Pitch error: \(error)")
+        // Signal dropped or level too low - keep previous note but mark as inactive
+        isSignalActive = false
+        sustainedInTuneTime = 0.0
+        resetInternalState()
+    }
 
-        // Convert amplitude to dB for professional-grade threshold
-        let dB = amplitudeTodB(amplitude)
+    /// Resets internal validation state
+    private func resetInternalState() {
+        recentFrequencies.removeAll()
+        recentAmplitudes.removeAll()
+        signalStartTime = nil
+        isLockedOnNote = false
+        currentMinimumDB = strictMinimumDB
+    }
+
+    /// Processes the detected pitch and updates published properties
+    private func processPitch(pitch: Pitch) {
+        let frequency = Float(pitch.frequency)
+        let signalLevel = pitchEngine.signalLevel  // Already in dB format from Tuna!
+
+        print("Pitch detected - Freq: \(frequency) Hz, Level dB: \(signalLevel)")
+
+        // Update amplitude for display (convert from dB to 0-1 range for UI)
+        self.amplitude = Double(pow(10.0, signalLevel / 20.0))
+
+        // signalLevel is already in dB format, use directly
+        let dB = signalLevel
+        print("dB: \(dB), threshold: \(currentMinimumDB)")
 
         // Check if signal is above adaptive dB threshold
         guard dB > currentMinimumDB else {
             // Signal dropped - keep previous note but mark as inactive
             isSignalActive = false
             sustainedInTuneTime = 0.0
-            recentFrequencies.removeAll()
-            recentAmplitudes.removeAll()
-            signalStartTime = nil
-            // Reset to strict threshold when signal is lost
-            isLockedOnNote = false
-            currentMinimumDB = strictMinimumDB
+            resetInternalState()
             return
         }
 
@@ -168,15 +165,12 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Practical range: E2 (82 Hz) to C7 (2093 Hz) covers most instruments
         guard frequency > 65 && frequency < 2000 else {
             isSignalActive = false
-            recentAmplitudes.removeAll()
-            signalStartTime = nil
-            isLockedOnNote = false
-            currentMinimumDB = strictMinimumDB
+            resetInternalState()
             return
         }
 
         // Track amplitude history for stability check
-        recentAmplitudes.append(amplitude)
+        recentAmplitudes.append(signalLevel)
         if recentAmplitudes.count > amplitudeWindowSize {
             recentAmplitudes.removeFirst()
         }
@@ -194,7 +188,6 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Reject if amplitude varies more than threshold (filters background noise)
         guard maxVariance < maxAmplitudeVariance else {
             isSignalActive = false
-            // Don't reset frequency buffer - allows frequency stability to build independently
             signalStartTime = nil
             isLockedOnNote = false
             currentMinimumDB = strictMinimumDB
@@ -249,13 +242,15 @@ class Tuner: ObservableObject, HasAudioEngine {
         // Update detected frequency
         detectedFrequency = smoothedFrequency
 
-        // Convert frequency to note and cents
-        let (note, cents) = frequencyToNoteAndCents(frequency: smoothedFrequency)
+        // Extract note name and cents from Tuna's Pitch object
+        let note = pitch.note  // Note struct
+        let noteString = "\(note.letter.description)\(note.octave)"  // Convert to "A4" format
+        let cents = pitch.offsets.closest.cents  // Already calculated by Tuna!
 
         // Apply smoothing to cents for smooth dot movement
         let smoothedCents = smoothCents(cents)
 
-        detectedNote = note
+        detectedNote = noteString
         detectedCents = smoothedCents
 
         // Track sustained in-tune time
@@ -310,39 +305,10 @@ class Tuner: ObservableObject, HasAudioEngine {
         }
     }
 
-    /// Converts a frequency in Hz to the nearest note name and cents offset
-    /// - Parameter frequency: The frequency in Hz
-    /// - Returns: A tuple containing the note name (e.g., "A4") and cents offset (-50 to +50)
-    private func frequencyToNoteAndCents(frequency: Double) -> (note: String, cents: Double) {
-        // A4 = 440 Hz is the reference note (note number 69 in MIDI)
-        let a4Frequency = 440.0
-        let a4NoteNumber = 69.0
-
-        // Formula: n = 12 * log2(f / 440)
-        let halfStepsFromA4 = 12.0 * log2(frequency / a4Frequency)
-
-        let midiNoteNumber = a4NoteNumber + halfStepsFromA4
-
-        let nearestNoteNumber = round(midiNoteNumber)
-
-        let nearestNoteFrequency = a4Frequency * pow(2.0, (nearestNoteNumber - a4NoteNumber) / 12.0)
-
-        // Formula: cents = 1200 * log2(f / f_target)
-        let cents = 1200.0 * log2(frequency / nearestNoteFrequency)
-
-        // Get note name and octave
-        let noteIndex = Int(nearestNoteNumber) % 12
-        let octave = Int(nearestNoteNumber) / 12 - 1
-        let noteName = noteNames[noteIndex]
-
-        return ("\(noteName)\(octave)", cents)
-    }
-
     // MARK: - Cleanup
     deinit {
         if isListening {
             stop()
         }
-        tracker = nil
     }
 }
