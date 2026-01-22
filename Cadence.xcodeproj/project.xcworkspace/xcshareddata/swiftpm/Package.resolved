@@ -1,5 +1,5 @@
 {
-  "originHash" : "0b064ee266dcf5d1ccf704aa935adf9ffb3db551ecf7d3bb8850ce2256240582",
+  "originHash" : "1219b8550367512986dc28e3614a7b2564cecec7684e8e7c6d51e9afa48007cc",
   "pins" : [
     {
       "identity" : "audiokit",
@@ -44,6 +44,15 @@
       "state" : {
         "revision" : "6baeee45ad83d2c11ab5b95b10cbb9742edd1a3d",
         "version" : "6.11.2"
+      }
+    },
+    {
+      "identity" : "tuna",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/alladinian/Tuna.git",
+      "state" : {
+        "revision" : "cfcfaf9e6e0d605b242c91f1b3decc9486c1b173",
+        "version" : "0.9.1"
       }
     }
   ],

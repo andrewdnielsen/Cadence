@@ -5,6 +5,7 @@ import RiveRuntime
 
 struct ContentView: View {
     @StateObject var metronome = Metronome()
+    @StateObject var tuner = Tuner()
 
     @State private var riveViewModel = RiveViewModel(fileName: "test", autoPlay: false)
     @State private var currentTab = 0
@@ -35,6 +36,11 @@ struct ContentView: View {
                         )
                         .tag(1)
                         .accessibilityLabel("Advanced view page")
+
+                        // Tuner view (page 2)
+                        BasicTunerView(tuner: tuner)
+                            .tag(2)
+                            .accessibilityLabel("Tuner page")
                     }
                     .frame(height: tabViewHeight)
                     .tabViewStyle(.page)
@@ -60,6 +66,7 @@ struct ContentView: View {
             }
             .onDisappear {
                 metronome.stop()
+                tuner.stop()
 
                 // Clear Rive view model reference to prevent memory leaks
                 metronome.riveViewModel = nil
