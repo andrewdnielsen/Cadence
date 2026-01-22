@@ -14,7 +14,7 @@ struct Theme {
 
     struct Colors {
         /// Blue accent color (#315BD8)
-        static let primary = Color("PrimaryColor")
+        static let primary = Color("CadencePrimary")
 
         /// Dark gray background (#212121)
         static let background = Color("BackgroundColor")
