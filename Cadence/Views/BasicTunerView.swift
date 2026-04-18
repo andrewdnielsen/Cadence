@@ -85,11 +85,11 @@ struct CompactCircularTuner: View {
     private var dotColor: Color {
         let absCents = abs(cents)
         if absCents < 5 {
-            return .green
+            return Theme.Colors.success
         } else if absCents < 25 {
-            return .yellow
+            return Theme.Colors.warning
         } else {
-            return .red
+            return Theme.Colors.error
         }
     }
 
@@ -125,19 +125,19 @@ struct CompactCircularTuner: View {
             let radius = size * 0.42
 
             ZStack {
-                // Grey arc line (180° semicircle)
+                // Arc track (180° semicircle)
                 Circle()
                     .trim(from: 0.0, to: 0.5)
-                    .stroke(Theme.Colors.surface, lineWidth: 10)
+                    .stroke(Theme.Colors.textSecondary.opacity(0.25), lineWidth: 10)
                     .frame(width: radius * 2, height: radius * 2)
                     .rotationEffect(.degrees(180))
 
-                // Center marker (green triangle at top)
+                // Center marker (triangle at top of arc)
                 Triangle()
-                    .fill(Color.green)
+                    .fill(isInTune ? Theme.Colors.success : Theme.Colors.textSecondary.opacity(0.4))
                     .frame(width: 10, height: 10)
                     .offset(y: -radius - 12)
-                    .shadow(color: isInTune ? .green.opacity(0.6) : .clear, radius: 8)
+                    .shadow(color: isInTune ? Theme.Colors.success.opacity(0.6) : .clear, radius: 8)
                     .scaleEffect(isInTune ? 1.2 : 1.0)
                     .animation(.easeInOut(duration: 0.7), value: isInTune)
 
@@ -179,12 +179,21 @@ struct CompactCircularTuner: View {
                     .animation(.easeInOut(duration: 0.2), value: isSignalActive)
 
                     if note != "--" {
-                        Text(formattedCents)
-                            .font(.system(size: 20, weight: .medium))
-                            .foregroundColor(Theme.Colors.textSecondary)
-                            .monospacedDigit()
-                            .opacity(isSignalActive ? 1.0 : 0.3)  // Dim when no signal
-                            .animation(.easeInOut(duration: 0.2), value: isSignalActive)
+                        Group {
+                            if isInTune {
+                                Text("In tune")
+                                    .font(.system(size: 16, weight: .semibold))
+                                    .foregroundColor(Theme.Colors.success)
+                            } else {
+                                Text(formattedCents)
+                                    .font(.system(size: 20, weight: .medium))
+                                    .foregroundColor(Theme.Colors.textSecondary)
+                                    .monospacedDigit()
+                            }
+                        }
+                        .opacity(isSignalActive ? 1.0 : 0.3)
+                        .animation(.easeInOut(duration: 0.2), value: isSignalActive)
+                        .animation(.easeInOut(duration: 0.3), value: isInTune)
                     }
                 }
                 .offset(y: radius * 0.15)
@@ -194,14 +203,11 @@ struct CompactCircularTuner: View {
         }
     }
 
-    // Format cents with +/- sign
+    // Format cents with +/- sign — hidden when in tune
     private var formattedCents: String {
-        if cents == 0 {
-            return "0 cents"
-        }
         let rounded = Int(round(cents))
         let sign = rounded > 0 ? "+" : ""
-        return "\(sign)\(rounded) cents"
+        return "\(sign)\(rounded)¢"
     }
 }
 

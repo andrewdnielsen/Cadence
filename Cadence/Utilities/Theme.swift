@@ -27,6 +27,18 @@ struct Theme {
 
         /// Slightly dimmed white for secondary text
         static let textSecondary = Color("TextSecondaryColor")
+
+        /// Green — in-tune confirmation, success states
+        static let success = Color(red: 0.18, green: 0.80, blue: 0.44)
+
+        /// Amber — near-pitch warning
+        static let warning = Color(red: 1.0, green: 0.76, blue: 0.03)
+
+        /// Red — out-of-tune / error states
+        static let error = Color(red: 1.0, green: 0.27, blue: 0.23)
+
+        /// Downbeat accent — slightly brighter blue for beat 1
+        static let downbeat = Color("CadencePrimary")
     }
 
     // MARK: - Spacing

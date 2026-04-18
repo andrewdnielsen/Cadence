@@ -62,7 +62,6 @@ struct TimeSignatureControl: View {
                 }
             }
         }
-        .padding(Theme.Spacing.md)
         .cardStyle(padding: Theme.Spacing.md)
     }
 
