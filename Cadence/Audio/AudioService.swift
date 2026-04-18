@@ -19,9 +19,7 @@ class AudioService: ObservableObject {
 
     // MARK: - Metronome Nodes
 
-    let downbeatPlayer = AVAudioPlayerNode()
-    let beatPlayer = AVAudioPlayerNode()
-    let silentPlayer = AVAudioPlayerNode()
+    let clickPlayer = AVAudioPlayerNode()
 
     // Pre-loaded PCM buffers
     private(set) var downbeatBuffer: AVAudioPCMBuffer!
@@ -88,31 +86,25 @@ class AudioService: ObservableObject {
     // MARK: - Audio Graph
 
     private func configureGraph() {
-        // Attach player nodes
-        engine.attach(downbeatPlayer)
-        engine.attach(beatPlayer)
-        engine.attach(silentPlayer)
+        // Attach player node
+        engine.attach(clickPlayer)
 
         let mainMixer = engine.mainMixerNode
         let outputFormat = mainMixer.outputFormat(forBus: 0)
 
-        // Connect players to mixer
-        engine.connect(downbeatPlayer, to: mainMixer, format: outputFormat)
-        engine.connect(beatPlayer, to: mainMixer, format: outputFormat)
-        engine.connect(silentPlayer, to: mainMixer, format: outputFormat)
+        // Connect player to mixer
+        engine.connect(clickPlayer, to: mainMixer, format: outputFormat)
 
         // Install input tap for pitch detection
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
 
-        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { [weak self] buffer, time in
+        inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { [weak self] buffer, _ in
             guard let self = self else { return }
 
-            // Calculate signal level (RMS to dB)
             let level = self.calculateSignalLevel(buffer: buffer)
 
             self.pitchQueue.async {
-                // Run YIN pitch detection
                 let result = YINPitchDetector.detectPitch(buffer: buffer, sampleRate: Float(inputFormat.sampleRate))
 
                 DispatchQueue.main.async {
@@ -134,10 +126,8 @@ class AudioService: ObservableObject {
         do {
             try engine.start()
 
-            // Pre-arm player nodes so first play has no latency
-            downbeatPlayer.play()
-            beatPlayer.play()
-            silentPlayer.play()
+            // Pre-arm player node so first play has no latency
+            clickPlayer.play()
         } catch {
             print("AudioService: Failed to start engine: \(error)")
         }
@@ -149,6 +139,13 @@ class AudioService: ObservableObject {
         downbeatBuffer = loadWAVBuffer(named: "high")
         beatBuffer = loadWAVBuffer(named: "low")
 
+        // Trim click buffers to a fixed short duration at load time.
+        // Professional metronome clicks are 20-80ms; trimming once here
+        // eliminates all per-beat allocation in the scheduling loop.
+        let maxClickDuration: Double = 0.080 // 80ms
+        downbeatBuffer = trimBufferAtLoad(downbeatBuffer, maxDuration: maxClickDuration)
+        beatBuffer = trimBufferAtLoad(beatBuffer, maxDuration: maxClickDuration)
+
         // Create silent buffer matching click duration for muted-beat timing
         if let refBuffer = downbeatBuffer {
             let silentBuf = AVAudioPCMBuffer(
@@ -159,6 +156,35 @@ class AudioService: ObservableObject {
             // Buffer is already zeroed by default
             silentBuffer = silentBuf
         }
+    }
+
+    /// Trims a buffer to maxDuration seconds. Returns the original if already short enough.
+    private func trimBufferAtLoad(_ buffer: AVAudioPCMBuffer?, maxDuration: Double) -> AVAudioPCMBuffer? {
+        guard let buffer = buffer else { return nil }
+        let maxFrames = AVAudioFrameCount(maxDuration * buffer.format.sampleRate)
+        guard buffer.frameLength > maxFrames else { return buffer }
+
+        guard let trimmed = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: maxFrames) else {
+            return buffer
+        }
+        trimmed.frameLength = maxFrames
+
+        let channelCount = Int(buffer.format.channelCount)
+        if let src = buffer.floatChannelData, let dst = trimmed.floatChannelData {
+            for ch in 0..<channelCount {
+                memcpy(dst[ch], src[ch], Int(maxFrames) * MemoryLayout<Float>.size)
+            }
+        } else if let src = buffer.int16ChannelData, let dst = trimmed.int16ChannelData {
+            for ch in 0..<channelCount {
+                memcpy(dst[ch], src[ch], Int(maxFrames) * MemoryLayout<Int16>.size)
+            }
+        } else if let src = buffer.int32ChannelData, let dst = trimmed.int32ChannelData {
+            for ch in 0..<channelCount {
+                memcpy(dst[ch], src[ch], Int(maxFrames) * MemoryLayout<Int32>.size)
+            }
+        }
+
+        return trimmed
     }
 
     private func loadWAVBuffer(named name: String) -> AVAudioPCMBuffer? {
@@ -271,9 +297,7 @@ class AudioService: ObservableObject {
         if !engine.isRunning {
             do {
                 try engine.start()
-                downbeatPlayer.play()
-                beatPlayer.play()
-                silentPlayer.play()
+                clickPlayer.play()
             } catch {
                 print("AudioService: Failed to restart engine after route change: \(error)")
             }
@@ -305,9 +329,7 @@ class AudioService: ObservableObject {
             do {
                 try AVAudioSession.sharedInstance().setActive(true)
                 try engine.start()
-                downbeatPlayer.play()
-                beatPlayer.play()
-                silentPlayer.play()
+                clickPlayer.play()
             } catch {
                 print("AudioService: Failed to restart engine after interruption: \(error)")
             }

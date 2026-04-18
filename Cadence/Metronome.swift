@@ -20,8 +20,9 @@ struct TimeSignature {
 /// A class encapsulating the logic for a metronome.
 ///
 /// Uses AVAudioPlayerNode via the shared AudioService for sample-accurate click scheduling.
-/// Beats are scheduled one at a time with a 1-beat look-ahead chain to prevent gaps
-/// while allowing immediate response to tempo/time-signature changes.
+/// Uses a single-beat completion-callback chain with `.dataConsumed` callbacks: each beat's
+/// callback schedules the next beat using the current tempo, so tempo changes take effect
+/// immediately without needing to restart the scheduling chain.
 class Metronome: ObservableObject {
 
     // MARK: - Audio
@@ -40,6 +41,9 @@ class Metronome: ObservableObject {
 
     // MARK: - Scheduling State
 
+    /// Number of beats to pre-schedule ahead
+    private let lookAheadCount = 1
+
     /// Monotonically increasing generation counter — each new scheduling chain
     /// gets a unique generation so stale completion handlers are always rejected.
     private var schedulingGeneration: UInt = 0
@@ -53,35 +57,12 @@ class Metronome: ObservableObject {
     // MARK: - Published Properties
 
     /// A boolean indicating whether the metronome is currently playing.
-    @Published var isPlaying = false {
-        didSet {
-            if isPlaying {
-                updateAnimationSpeed()
-                riveViewModel?.play()
-            } else {
-                // Cancel all pending buffers
-                audioService.downbeatPlayer.stop()
-                audioService.beatPlayer.stop()
-                audioService.silentPlayer.stop()
-                // Re-arm players for next start
-                audioService.downbeatPlayer.play()
-                audioService.beatPlayer.play()
-                audioService.silentPlayer.play()
-
-                riveViewModel?.pause()
-                updateAnimationSpeed()
-            }
-        }
-    }
+    @Published var isPlaying = false
 
     /// The tempo of the metronome in beats per minute (BPM).
     @Published var tempo: Double = 120 {
         didSet {
             updateAnimationSpeed()
-
-            if isPlaying {
-                rescheduleFromCurrentPosition()
-            }
         }
     }
 
@@ -91,9 +72,8 @@ class Metronome: ObservableObject {
             resetBeats()
 
             if isPlaying {
-                // Reset to downbeat with new time signature
-                currentBeat = 0
-                rescheduleFromCurrentPosition()
+                cancelPendingBuffers()
+                beginScheduling()
             }
         }
     }
@@ -158,94 +138,91 @@ class Metronome: ObservableObject {
 
     // MARK: - Scheduling
 
-    /// Schedules the next beat in the chain
-    private func scheduleNextBeat(beatIndex: Int, hostTime: UInt64) {
-        guard isPlaying else { return }
+    /// Returns a safe scheduling offset based on the device's IO buffer duration
+    private func safeOffsetTicks() -> UInt64 {
+        let ioBufferDuration = AVAudioSession.sharedInstance().ioBufferDuration
+        let offset = max(ioBufferDuration * 2, 0.010) // At least 10ms
+        return AVAudioTime.hostTime(forSeconds: offset)
+    }
 
-        let generation = self.schedulingGeneration
+    /// Returns the current host time from the audio engine
+    private func currentHostTime() -> UInt64 {
+        if let lastRenderTime = audioService.engine.outputNode.lastRenderTime,
+           lastRenderTime.isHostTimeValid {
+            return lastRenderTime.hostTime
+        }
+        return mach_absolute_time()
+    }
+
+    /// Schedules a single beat and chains to the next via completion callback.
+    /// The callback reads `self.tempo` at invocation time, so tempo changes from
+    /// the slider are picked up automatically without restarting the chain.
+    private func scheduleNextBeat(beatIndex: Int, hostTime: UInt64, generation: UInt) {
+        guard isPlaying, generation == schedulingGeneration else { return }
+
         let beat = beatIndex % timeSignature.beats
-        let beatDuration = 60.0 / tempo
-        let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
-
         let time = AVAudioTime(hostTime: hostTime)
-        let player: AVAudioPlayerNode
-        let buffer: AVAudioPCMBuffer
+        let sourceBuffer: AVAudioPCMBuffer
 
         if beatsEnabled.count > beat && beatsEnabled[beat] {
             if beat == 0 {
-                player = audioService.downbeatPlayer
-                buffer = audioService.downbeatBuffer
+                sourceBuffer = audioService.downbeatBuffer
             } else {
-                player = audioService.beatPlayer
-                buffer = audioService.beatBuffer
+                sourceBuffer = audioService.beatBuffer
             }
         } else {
-            // Muted beat — use silent buffer to maintain sample-accurate timing
-            player = audioService.silentPlayer
-            buffer = audioService.silentBuffer
+            sourceBuffer = audioService.silentBuffer
         }
 
-        player.scheduleBuffer(buffer, at: time, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+        audioService.clickPlayer.scheduleBuffer(sourceBuffer, at: time, completionCallbackType: .dataConsumed) { [weak self] _ in
             guard let self = self else { return }
             DispatchQueue.main.async {
-                // Reject stale completions from previous scheduling chains
                 guard self.isPlaying, generation == self.schedulingGeneration else { return }
                 self.currentBeat = beat
-                self.scheduledBeatIndex = beatIndex + 1
-                self.nextBeatHostTime = hostTime + beatHostTicks
-                self.scheduleNextBeat(beatIndex: self.scheduledBeatIndex, hostTime: self.nextBeatHostTime)
+
+                // Compute next beat timing using current tempo (not captured),
+                // so slider changes take effect on the very next beat.
+                let beatDuration = 60.0 / self.tempo
+                let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
+                let nextHostTime = hostTime + beatHostTicks
+                let nextIndex = beatIndex + 1
+
+                self.scheduledBeatIndex = nextIndex
+                self.nextBeatHostTime = nextHostTime
+                self.scheduleNextBeat(beatIndex: nextIndex, hostTime: nextHostTime, generation: generation)
             }
         }
     }
 
-    /// Starts the scheduling chain from the current host time
+    /// Starts the scheduling chain from the current host time, pre-filling the look-ahead pipeline
     private func beginScheduling() {
-        let hostTime: UInt64
-        if let lastRenderTime = audioService.engine.outputNode.lastRenderTime,
-           lastRenderTime.isHostTimeValid {
-            hostTime = lastRenderTime.hostTime
-        } else {
-            hostTime = mach_absolute_time()
-        }
-
-        // Add ~5ms offset to avoid scheduling in the past
-        let offsetTicks = AVAudioTime.hostTime(forSeconds: 0.005)
-        let startTime = hostTime + offsetTicks
+        let hostTime = currentHostTime()
+        let startTime = hostTime + safeOffsetTicks()
 
         schedulingGeneration &+= 1
-        scheduledBeatIndex = 0
-        nextBeatHostTime = startTime
-        scheduleNextBeat(beatIndex: 0, hostTime: startTime)
-    }
+        let generation = schedulingGeneration
 
-    /// Cancels all pending buffers and re-arms players
-    private func cancelPendingBuffers() {
-        schedulingGeneration &+= 1 // invalidate in-flight callbacks before firing them
-        audioService.downbeatPlayer.stop()
-        audioService.beatPlayer.stop()
-        audioService.silentPlayer.stop()
-        audioService.downbeatPlayer.play()
-        audioService.beatPlayer.play()
-        audioService.silentPlayer.play()
-    }
+        let beatDuration = 60.0 / tempo
+        let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
 
-    /// Reschedules from the next beat at the current tempo
-    private func rescheduleFromCurrentPosition() {
-        cancelPendingBuffers()
-
-        let hostTime: UInt64
-        if let lastRenderTime = audioService.engine.outputNode.lastRenderTime,
-           lastRenderTime.isHostTimeValid {
-            hostTime = lastRenderTime.hostTime
-        } else {
-            hostTime = mach_absolute_time()
+        // Pre-schedule multiple beats to fill the look-ahead pipeline
+        var beatIndex = 0
+        var beatTime = startTime
+        for _ in 0..<lookAheadCount {
+            scheduleNextBeat(beatIndex: beatIndex, hostTime: beatTime, generation: generation)
+            beatIndex += 1
+            beatTime += beatHostTicks
         }
-        let offsetTicks = AVAudioTime.hostTime(forSeconds: 0.005)
 
-        let nextBeat = (currentBeat + 1) % timeSignature.beats
-        nextBeatHostTime = hostTime + offsetTicks
-        scheduledBeatIndex = nextBeat
-        scheduleNextBeat(beatIndex: nextBeat, hostTime: nextBeatHostTime)
+        scheduledBeatIndex = beatIndex
+        nextBeatHostTime = beatTime
+    }
+
+    /// Cancels all pending buffers and re-arms the player
+    private func cancelPendingBuffers() {
+        schedulingGeneration &+= 1
+        audioService.clickPlayer.stop()
+        audioService.clickPlayer.play()
     }
 
     // MARK: - Public Methods
@@ -254,13 +231,18 @@ class Metronome: ObservableObject {
     func start() {
         isPlaying = true
         currentBeat = 0
+        updateAnimationSpeed()
+        riveViewModel?.play()
         beginScheduling()
     }
 
     /// Stops the metronome playback.
     func stop() {
+        cancelPendingBuffers()
         isPlaying = false
         currentBeat = 0
+        riveViewModel?.pause()
+        updateAnimationSpeed()
 
         // TODO: Add Rive state machine trigger to snap metronome stick to center on stop
     }
