@@ -6,7 +6,9 @@
 //
 
 import SwiftUI
-import AudioKit
+
+/// Tempo type alias (beats per minute)
+typealias BPM = Double
 
 /// A comprehensive tempo control with BPM display and slider
 struct TempoControls: View {

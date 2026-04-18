@@ -6,31 +6,15 @@
 //
 
 import SwiftUI
-import AVFoundation
 
 @main
 struct CadenceApp: App {
+    @StateObject private var audioService = AudioService.shared
+
     var body: some Scene {
         WindowGroup {
             ContentView()
-                .onAppear {
-                    configureAudioSession()
-                }
-        }
-    }
-
-    /// Configures the audio session to support both playback (metronome) and recording (tuner)
-    private func configureAudioSession() {
-        do {
-            try AVAudioSession.sharedInstance().setCategory(
-                .playAndRecord,
-                mode: .default,
-                options: [.defaultToSpeaker, .allowBluetoothHFP]
-            )
-            try AVAudioSession.sharedInstance().setActive(true)
-            print("Audio session configured for simultaneous playback and recording")
-        } catch {
-            print("Error configuring audio session: \(error.localizedDescription)")
+                .environmentObject(audioService)
         }
     }
 }

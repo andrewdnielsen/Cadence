@@ -6,8 +6,6 @@
 //
 import Foundation
 import AVFoundation
-import AudioKit
-import AudioKitEX
 import SwiftUI
 import RiveRuntime
 
@@ -21,152 +19,118 @@ struct TimeSignature {
 
 /// A class encapsulating the logic for a metronome.
 ///
-/// This class uses AudioKit to generate a precise, looping click track based on a given tempo and time signature.
-/// It supports different sounds for downbeats and regular beats, and can use either built-in sounds or
-/// a custom file if present in the app bundle.
-class Metronome: ObservableObject, HasAudioEngine {
-    
-    // MARK: - Audio Engine Components
+/// Uses AVAudioPlayerNode via the shared AudioService for sample-accurate click scheduling.
+/// Beats are scheduled one at a time with a 1-beat look-ahead chain to prevent gaps
+/// while allowing immediate response to tempo/time-signature changes.
+class Metronome: ObservableObject {
 
-    /// The main audio engine for processing audio.
-    let engine = AudioEngine()
+    // MARK: - Audio
 
-    /// The sampler instrument for downbeat sounds (high.wav).
-    let downbeatSampler = AppleSampler()
+    private let audioService = AudioService.shared
 
-    /// The sampler instrument for regular beat sounds (low.wav).
-    let beatSampler = AppleSampler()
+    // MARK: - Rive Animation
 
-    /// Mixer to combine both samplers.
-    let mixer = Mixer()
-    
-    /// Callback instrument for tracking beat position.
-    var callbackInst: CallbackInstrument!
-
-    /// The sequencer that handles timing and playback.
-    var sequencer: Sequencer!
-    
     /// The Rive view model for controlling animation
     var riveViewModel: RiveViewModel?
-    
+
     /// The instance for data-binding to the metronome stick's properties.
     private var metStickInstance: RiveDataBindingViewModel.Instance?
 
     private let animationBaseBPM: Double = 120
 
-    /// Timer for tracking beat position
-    private var beatTimer: Timer?
+    // MARK: - Scheduling State
 
-    /// Track when playback started
-    private var playbackStartTime: Date?
+    /// Counter to prevent double-scheduling; incremented after each beat
+    private var scheduledBeatIndex: Int = 0
+
+    /// Host time of the next beat to schedule
+    private var nextBeatHostTime: UInt64 = 0
 
     // MARK: - Published Properties
-    
+
     /// A boolean indicating whether the metronome is currently playing.
     @Published var isPlaying = false {
-            didSet {
-                if isPlaying {
-                    updateAnimationSpeed()
-                    sequencer.play()
-                    riveViewModel?.play()
-                } else {
-                    sequencer.stop()
-                    riveViewModel?.pause()
-                    updateAnimationSpeed()
-                }
-            }
-        }
-    
-    /// The tempo of the metronome in beats per minute (BPM).
-    ///
-    /// Setting this property will automatically update the sequencer's tempo.
-    @Published var tempo: BPM = 120 {
         didSet {
-            sequencer.tempo = tempo
-            updateAnimationSpeed()
+            if isPlaying {
+                updateAnimationSpeed()
+                riveViewModel?.play()
+            } else {
+                // Cancel all pending buffers
+                audioService.downbeatPlayer.stop()
+                audioService.beatPlayer.stop()
+                audioService.silentPlayer.stop()
+                // Re-arm players for next start
+                audioService.downbeatPlayer.play()
+                audioService.beatPlayer.play()
+                audioService.silentPlayer.play()
 
-            // If playing, adjust playback start time to maintain beat sync
-            if isPlaying, let startTime = playbackStartTime {
-                let elapsedTime = Date().timeIntervalSince(startTime)
-                let beatsElapsed = (elapsedTime * Double(oldValue)) / 60.0
-
-                // Calculate new start time that would put us at the same beat position with new tempo
-                let newElapsedTime = (beatsElapsed * 60.0) / Double(tempo)
-                playbackStartTime = Date().addingTimeInterval(-newElapsedTime)
+                riveViewModel?.pause()
+                updateAnimationSpeed()
             }
         }
     }
-    
+
+    /// The tempo of the metronome in beats per minute (BPM).
+    @Published var tempo: Double = 120 {
+        didSet {
+            updateAnimationSpeed()
+
+            if isPlaying {
+                rescheduleFromCurrentPosition()
+            }
+        }
+    }
+
     /// The time signature for the metronome's beat pattern.
-    ///
-    /// Changing this will automatically update the sequence to match the new time signature.
     @Published var timeSignature: TimeSignature = TimeSignature() {
         didSet {
             resetBeats()
-            updateSequences()
+
+            if isPlaying {
+                // Reset to downbeat with new time signature
+                currentBeat = 0
+                rescheduleFromCurrentPosition()
+            }
         }
     }
-    
+
     /// The current beat position (0-based) within the measure.
     @Published var currentBeat = 0
 
     /// Array tracking which beats are enabled (true) or disabled (false).
-    /// Index corresponds to beat number (0 = downbeat, 1 = beat 2, etc.)
     @Published var beatsEnabled: [Bool] = []
 
-    // MARK: - Private Properties
-    
-    /// The MIDI note number for both downbeat and regular beat sounds.
-    /// Since we use separate samplers, both can use the same note number.
-    private let clickNoteNumber = MIDINoteNumber(60)
-    
-    /// The velocity for beat notes.
-    private let beatNoteVelocity = 100.0
-
-    /// The name of the high click sound file (for downbeats).
-    private let highClickSoundName = "high"
-
-    /// The name of the low click sound file (for regular beats).
-    private let lowClickSoundName = "low"
-
-    /// The extension of the click sound files.
-    private let soundExtension = "wav"
-    
     // MARK: - Initialization
-    
-    /// Initializes a new metronome instance.
-    ///
-    /// Sets up the audio engine, sequencer tracks, and loads appropriate sound files.
-    /// The metronome will use a custom sound file if present in the bundle,
-    /// otherwise it falls back to built-in sounds.
+
     init() {
-        callbackInst = CallbackInstrument(midiCallback: { [weak self] noteNumber, velocity, _ in
-            DispatchQueue.main.async {
-                guard let self = self else { return }
-                self.currentBeat = Int(noteNumber)
-            }
-        })
-
-        sequencer = Sequencer(targetNodes: [downbeatSampler, beatSampler, callbackInst])
-
-        mixer.addInput(downbeatSampler)
-        mixer.addInput(beatSampler)
-        mixer.volume = 20
-        engine.output = mixer
-
-        setupSampler()
         resetBeats()
-        updateSequences()
+
+        // Register for interruption handling
+        audioService.isMetronomePlaying = { [weak self] in
+            self?.isPlaying ?? false
+        }
+        audioService.onInterruptionBegan = { [weak self] in
+            guard let self = self, self.isPlaying else { return }
+            // Pause scheduling but keep isPlaying true so UI stays in "playing" state
+            self.cancelPendingBuffers()
+        }
+        audioService.onInterruptionResume = { [weak self] in
+            guard let self = self, self.isPlaying else { return }
+            self.beginScheduling()
+        }
+        audioService.onInterruptionStop = { [weak self] in
+            self?.stop()
+        }
     }
-    
+
     // MARK: - Rive Animation Methods
-        
+
     /// Sets the Rive view model for animation control
     func setRiveViewModel(_ viewModel: RiveViewModel) {
         self.riveViewModel = viewModel
         guard let riveFile = viewModel.riveModel?.riveFile,
-                let metStickViewModel = riveFile.viewModelNamed("metStick"),
-                let instance = metStickViewModel.createDefaultInstance()
+              let metStickViewModel = riveFile.viewModelNamed("metStick"),
+              let instance = metStickViewModel.createDefaultInstance()
         else {
             print("Error: Failed to set up Rive ViewModel instance.")
             return
@@ -178,156 +142,123 @@ class Metronome: ObservableObject, HasAudioEngine {
         self.riveViewModel?.pause()
         updateAnimationSpeed()
     }
+
     /// Updates the animation speed based on current tempo
     private func updateAnimationSpeed() {
-            guard let speedProperty = metStickInstance?.numberProperty(fromPath: "speed") else {
-                print("ERROR: Failed to get speed property - metStickInstance is \(metStickInstance == nil ? "nil" : "not nil")")
-                return
-            }
-
-            let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
-        speedProperty.value = speedMultiplier
-        }
-    
-    
-    
-    // MARK: - Private Methods
-    
-    /// Sets up the sampler with appropriate click sounds.
-    ///
-    /// Attempts to load a custom file from the bundle first,
-    /// then falls back to built-in sounds if the custom file is not found.
-    private func setupSampler() {
-        loadClickSounds()
-    }
-    
-    /// Loads click sounds for the metronome.
-    ///
-    /// This method loads the high.wav file into the downbeat sampler
-    /// and low.wav into the regular beat sampler.
-    private func loadClickSounds() {
-        guard let highURL = Bundle.main.url(forResource: highClickSoundName, withExtension: soundExtension),
-              let lowURL = Bundle.main.url(forResource: lowClickSoundName, withExtension: soundExtension) else {
-            print("Error: Could not find high.wav or low.wav in bundle")
+        guard let speedProperty = metStickInstance?.numberProperty(fromPath: "speed") else {
             return
         }
-
-        do {
-            let highFile = try AVAudioFile(forReading: highURL)
-            let lowFile = try AVAudioFile(forReading: lowURL)
-
-            try downbeatSampler.loadAudioFile(highFile)
-            try beatSampler.loadAudioFile(lowFile)
-        } catch {
-            print("Error loading click sounds: \(error)")
-        }
+        let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
+        speedProperty.value = speedMultiplier
     }
-    
-    /// Updates the sequencer tracks to match the current time signature.
-    ///
-    /// This method recreates the MIDI sequences for both sampler tracks and the
-    /// callback track based on the current time signature settings.
-    /// Only enabled beats will produce sound.
-    private func updateSequences() {
-        let downbeatTrack = sequencer.tracks[0]
-        downbeatTrack.length = Double(timeSignature.beats)
-        downbeatTrack.clear()
 
-        if beatsEnabled.count > 0 && beatsEnabled[0] {
-            downbeatTrack.sequence.add(noteNumber: clickNoteNumber,
-                                      velocity: MIDIVelocity(Int(beatNoteVelocity)),
-                                      position: 0.0,
-                                      duration: 0.1)
-        }
+    // MARK: - Scheduling
 
-        let beatTrack = sequencer.tracks[1]
-        beatTrack.length = Double(timeSignature.beats)
-        beatTrack.clear()
+    /// Schedules the next beat in the chain
+    private func scheduleNextBeat(beatIndex: Int, hostTime: UInt64) {
+        guard isPlaying, beatIndex == scheduledBeatIndex else { return }
 
-        for beat in 1..<timeSignature.beats {
-            guard beat < beatsEnabled.count && beatsEnabled[beat] else {
-                continue
+        let beat = beatIndex % timeSignature.beats
+        let beatDuration = 60.0 / tempo
+        let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
+
+        let time = AVAudioTime(hostTime: hostTime)
+        let player: AVAudioPlayerNode
+        let buffer: AVAudioPCMBuffer
+
+        if beatsEnabled.count > beat && beatsEnabled[beat] {
+            if beat == 0 {
+                player = audioService.downbeatPlayer
+                buffer = audioService.downbeatBuffer
+            } else {
+                player = audioService.beatPlayer
+                buffer = audioService.beatBuffer
             }
-
-            beatTrack.sequence.add(noteNumber: clickNoteNumber,
-                                  velocity: MIDIVelocity(Int(beatNoteVelocity)),
-                                  position: Double(beat),
-                                  duration: 0.1)
+        } else {
+            // Muted beat — use silent buffer to maintain sample-accurate timing
+            player = audioService.silentPlayer
+            buffer = audioService.silentBuffer
         }
 
-        let callbackTrack = sequencer.tracks[2]
-        callbackTrack.length = Double(timeSignature.beats)
-        callbackTrack.clear()
-
-        for beat in 0..<timeSignature.beats {
-            callbackTrack.sequence.add(noteNumber: MIDINoteNumber(beat),
-                                      velocity: MIDIVelocity(100),
-                                      position: Double(beat),
-                                      duration: 0.1)
+        player.scheduleBuffer(buffer, at: time, completionCallbackType: .dataPlayedBack) { [weak self] _ in
+            guard let self = self else { return }
+            DispatchQueue.main.async {
+                guard self.isPlaying, beatIndex == self.scheduledBeatIndex else { return }
+                self.currentBeat = beat
+                self.scheduledBeatIndex += 1
+                self.nextBeatHostTime = hostTime + beatHostTicks
+                self.scheduleNextBeat(beatIndex: self.scheduledBeatIndex, hostTime: self.nextBeatHostTime)
+            }
         }
     }
-    
+
+    /// Starts the scheduling chain from the current host time
+    private func beginScheduling() {
+        let hostTime: UInt64
+        if let lastRenderTime = audioService.engine.outputNode.lastRenderTime,
+           lastRenderTime.isHostTimeValid {
+            hostTime = lastRenderTime.hostTime
+        } else {
+            hostTime = mach_absolute_time()
+        }
+
+        // Add ~5ms offset to avoid scheduling in the past
+        let offsetTicks = AVAudioTime.hostTime(forSeconds: 0.005)
+        let startTime = hostTime + offsetTicks
+
+        scheduledBeatIndex = 0
+        nextBeatHostTime = startTime
+        scheduleNextBeat(beatIndex: 0, hostTime: startTime)
+    }
+
+    /// Cancels all pending buffers and re-arms players
+    private func cancelPendingBuffers() {
+        audioService.downbeatPlayer.stop()
+        audioService.beatPlayer.stop()
+        audioService.silentPlayer.stop()
+        audioService.downbeatPlayer.play()
+        audioService.beatPlayer.play()
+        audioService.silentPlayer.play()
+        scheduledBeatIndex = Int.max // invalidate any in-flight callbacks
+    }
+
+    /// Reschedules from the next beat at the current tempo
+    private func rescheduleFromCurrentPosition() {
+        cancelPendingBuffers()
+
+        let hostTime: UInt64
+        if let lastRenderTime = audioService.engine.outputNode.lastRenderTime,
+           lastRenderTime.isHostTimeValid {
+            hostTime = lastRenderTime.hostTime
+        } else {
+            hostTime = mach_absolute_time()
+        }
+        let offsetTicks = AVAudioTime.hostTime(forSeconds: 0.005)
+
+        let nextBeat = (currentBeat + 1) % timeSignature.beats
+        nextBeatHostTime = hostTime + offsetTicks
+        scheduledBeatIndex = nextBeat
+        scheduleNextBeat(beatIndex: nextBeat, hostTime: nextBeatHostTime)
+    }
+
     // MARK: - Public Methods
-    
+
     /// Starts the metronome playback.
-    ///
-    /// This method starts the audio engine and begins sequence playback.
     func start() {
-        do {
-            if !engine.avEngine.isRunning {
-                try engine.start()
-            }
-            isPlaying = true
-
-            playbackStartTime = Date()
-
-            beatTimer?.invalidate()
-            beatTimer = Timer.scheduledTimer(withTimeInterval: 0.016, repeats: true) { [weak self] _ in
-                guard let self = self, self.isPlaying, let startTime = self.playbackStartTime else { return }
-
-                let elapsedTime = Date().timeIntervalSince(startTime)
-                let beatsElapsed = (elapsedTime * Double(self.tempo)) / 60.0
-                let beat = Int(beatsElapsed) % self.timeSignature.beats
-
-                DispatchQueue.main.async {
-                    if self.currentBeat != beat {
-                        self.currentBeat = beat
-                    }
-                }
-            }
-        } catch {
-            print("Error starting metronome: \(error)")
-        }
+        isPlaying = true
+        currentBeat = 0
+        beginScheduling()
     }
-    
+
     /// Stops the metronome playback.
-    ///
-    /// This method stops the sequencer and rewinds it to the beginning.
     func stop() {
         isPlaying = false
-
-        beatTimer?.invalidate()
-        beatTimer = nil
-        playbackStartTime = nil
-
-        sequencer.rewind()
         currentBeat = 0
 
-        // Keep audio engine running to prevent sampler corruption
-        // Engine will be stopped when ContentView disappears
-
-        riveViewModel?.reset()
-
-        if let vm = riveViewModel {
-            setRiveViewModel(vm)
-            updateAnimationSpeed()
-        }
+        // TODO: Add Rive state machine trigger to snap metronome stick to center on stop
     }
-    
+
     /// Toggles the metronome playback state.
-    ///
-    /// If the metronome is playing, it will be stopped.
-    /// If it's stopped, it will be started.
     func toggle() {
         if isPlaying {
             stop()
@@ -337,29 +268,18 @@ class Metronome: ObservableObject, HasAudioEngine {
     }
 
     /// Resets all beats to enabled state based on current time signature.
-    ///
-    /// This is called automatically when the time signature changes,
-    /// but can also be called manually to re-enable all beats.
     func resetBeats() {
         beatsEnabled = Array(repeating: true, count: timeSignature.beats)
     }
 
     /// Toggles the enabled state of a specific beat.
-    ///
-    /// - Parameter index: The beat index to toggle (0-based, where 0 is the downbeat)
     func toggleBeat(at index: Int) {
-        guard index >= 0 && index < beatsEnabled.count else {
-            print("Warning: Attempted to toggle beat at invalid index \(index)")
-            return
-        }
+        guard index >= 0 && index < beatsEnabled.count else { return }
         beatsEnabled[index].toggle()
-        updateSequences()
     }
 
-    /// Cleanup when Metronome is deallocated
     deinit {
         stop()
-
         riveViewModel = nil
         metStickInstance = nil
     }

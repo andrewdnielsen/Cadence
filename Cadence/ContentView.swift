@@ -1,6 +1,4 @@
 import SwiftUI
-import AudioKit
-import AudioKitUI
 import RiveRuntime
 
 struct ContentView: View {
@@ -30,7 +28,7 @@ struct ContentView: View {
         }
         .onDisappear {
             metronome.stop()
-            tuner.stop()
+            tuner.isListening = false
             metronome.riveViewModel = nil
         }
     }

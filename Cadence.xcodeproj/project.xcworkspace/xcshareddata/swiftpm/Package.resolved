@@ -1,42 +1,6 @@
 {
-  "originHash" : "1219b8550367512986dc28e3614a7b2564cecec7684e8e7c6d51e9afa48007cc",
+  "originHash" : "0ed1a20ef167ff6bbd7e233d8316ce8089f144b9619fb921d55eb1b69ffdfd4c",
   "pins" : [
-    {
-      "identity" : "audiokit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/AudioKit.git",
-      "state" : {
-        "revision" : "5b3fd238ef8ee95c9842ca4ea83ca58ee151e630",
-        "version" : "5.6.5"
-      }
-    },
-    {
-      "identity" : "audiokitex",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/AudioKitEX.git",
-      "state" : {
-        "revision" : "23e8e3bffd9fbc1dffa72f1d47c7f714dd777288",
-        "version" : "5.6.2"
-      }
-    },
-    {
-      "identity" : "audiokitui",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/AudioKitUI.git",
-      "state" : {
-        "revision" : "1a61e8a96c7ee24c3e5abe06dc3334a31fd7571d",
-        "version" : "0.3.7"
-      }
-    },
-    {
-      "identity" : "controls",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/AudioKit/Controls.git",
-      "state" : {
-        "revision" : "4dd10370125af7f1e26d7a71b2c5929bb3c95087",
-        "version" : "1.1.4"
-      }
-    },
     {
       "identity" : "rive-ios",
       "kind" : "remoteSourceControl",
@@ -44,15 +8,6 @@
       "state" : {
         "revision" : "6baeee45ad83d2c11ab5b95b10cbb9742edd1a3d",
         "version" : "6.11.2"
-      }
-    },
-    {
-      "identity" : "tuna",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/alladinian/Tuna.git",
-      "state" : {
-        "revision" : "cfcfaf9e6e0d605b242c91f1b3decc9486c1b173",
-        "version" : "0.9.1"
       }
     }
   ],
