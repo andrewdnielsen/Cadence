@@ -41,10 +41,10 @@ class Metronome: ObservableObject, HasAudioEngine {
     let mixer = Mixer()
     
     /// Callback instrument for tracking beat position.
-    var callbackInst = CallbackInstrument()
-    
+    var callbackInst: CallbackInstrument!
+
     /// The sequencer that handles timing and playback.
-    var sequencer = Sequencer()
+    var sequencer: Sequencer!
     
     /// The Rive view model for controlling animation
     var riveViewModel: RiveViewModel?
@@ -140,9 +140,6 @@ class Metronome: ObservableObject, HasAudioEngine {
     /// The metronome will use a custom sound file if present in the bundle,
     /// otherwise it falls back to built-in sounds.
     init() {
-        sequencer.addTrack(for: downbeatSampler)
-        sequencer.addTrack(for: beatSampler)
-
         callbackInst = CallbackInstrument(midiCallback: { [weak self] noteNumber, velocity, _ in
             DispatchQueue.main.async {
                 guard let self = self else { return }
@@ -150,11 +147,11 @@ class Metronome: ObservableObject, HasAudioEngine {
             }
         })
 
-        sequencer.addTrack(for: callbackInst)
+        sequencer = Sequencer(targetNodes: [downbeatSampler, beatSampler, callbackInst])
 
         mixer.addInput(downbeatSampler)
         mixer.addInput(beatSampler)
-        mixer.volume = 20  // Increase volume by 50%
+        mixer.volume = 20
         engine.output = mixer
 
         setupSampler()

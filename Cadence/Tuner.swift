@@ -90,7 +90,11 @@ class Tuner: ObservableObject {
 
     /// Starts the tuner and begins listening for audio input
     func start() {
-        // Ensure audio session is active before starting pitch detection
+        #if targetEnvironment(simulator)
+        DispatchQueue.main.async { self.isListening = false }
+        return
+        #endif
+
         let session = AVAudioSession.sharedInstance()
         do {
             try session.setActive(true)
@@ -255,14 +259,6 @@ class Tuner: ObservableObject {
 
         // Track sustained in-tune time
         updateSustainedTime(cents: smoothedCents)
-    }
-
-    /// Converts amplitude (0-1 range) to decibels
-    private func amplitudeTodB(_ amplitude: Float) -> Float {
-        // Prevent log of zero
-        let clampedAmplitude = max(amplitude, 0.00001)
-        // Convert to dB: dB = 20 * log10(amplitude)
-        return 20.0 * log10(clampedAmplitude)
     }
 
     /// Smooths frequency changes to reduce display jitter

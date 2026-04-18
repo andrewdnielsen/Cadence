@@ -11,10 +11,24 @@ struct BasicTunerView: View {
     @ObservedObject var tuner: Tuner
 
     var body: some View {
+        #if targetEnvironment(simulator)
+        VStack(spacing: Theme.Spacing.md) {
+            Image(systemName: "mic.slash")
+                .font(.system(size: 48))
+                .foregroundColor(Theme.Colors.textSecondary)
+            Text("Tuner Unavailable")
+                .font(.system(size: 22, weight: .semibold))
+                .foregroundColor(Theme.Colors.textPrimary)
+            Text("Microphone access is not available\nin the Simulator.")
+                .font(.system(size: 15))
+                .foregroundColor(Theme.Colors.textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        #else
         VStack {
             Spacer()
 
-            // Compact circular tuner with arc and moving dot
             CompactCircularTuner(
                 note: tuner.detectedNote,
                 cents: tuner.detectedCents,
@@ -37,6 +51,7 @@ struct BasicTunerView: View {
                 tuner.isListening = false
             }
         }
+        #endif
     }
 }
 
@@ -177,16 +192,6 @@ struct CompactCircularTuner: View {
             .frame(width: size, height: size)
             .position(x: geometry.size.width / 2, y: geometry.size.height / 2)
         }
-    }
-
-    // Calculate X position of dot on the arc
-    private func calculateDotX(angle: Double, radius: CGFloat) -> CGFloat {
-        return radius * sin(angle * .pi / 180.0)
-    }
-
-    // Calculate Y position of dot on the arc
-    private func calculateDotY(angle: Double, radius: CGFloat) -> CGFloat {
-        return -radius * cos(angle * .pi / 180.0)
     }
 
     // Format cents with +/- sign

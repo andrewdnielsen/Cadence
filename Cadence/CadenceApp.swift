@@ -21,7 +21,6 @@ struct CadenceApp: App {
 
     /// Configures the audio session to support both playback (metronome) and recording (tuner)
     private func configureAudioSession() {
-        #if !targetEnvironment(simulator)
         do {
             try AVAudioSession.sharedInstance().setCategory(
                 .playAndRecord,
@@ -33,6 +32,5 @@ struct CadenceApp: App {
         } catch {
             print("Error configuring audio session: \(error.localizedDescription)")
         }
-        #endif
     }
 }
