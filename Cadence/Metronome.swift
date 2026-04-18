@@ -40,7 +40,11 @@ class Metronome: ObservableObject {
 
     // MARK: - Scheduling State
 
-    /// Counter to prevent double-scheduling; incremented after each beat
+    /// Monotonically increasing generation counter — each new scheduling chain
+    /// gets a unique generation so stale completion handlers are always rejected.
+    private var schedulingGeneration: UInt = 0
+
+    /// The beat index within the current chain (0, 1, 2, ...)
     private var scheduledBeatIndex: Int = 0
 
     /// Host time of the next beat to schedule
@@ -156,8 +160,9 @@ class Metronome: ObservableObject {
 
     /// Schedules the next beat in the chain
     private func scheduleNextBeat(beatIndex: Int, hostTime: UInt64) {
-        guard isPlaying, beatIndex == scheduledBeatIndex else { return }
+        guard isPlaying else { return }
 
+        let generation = self.schedulingGeneration
         let beat = beatIndex % timeSignature.beats
         let beatDuration = 60.0 / tempo
         let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
@@ -183,9 +188,10 @@ class Metronome: ObservableObject {
         player.scheduleBuffer(buffer, at: time, completionCallbackType: .dataPlayedBack) { [weak self] _ in
             guard let self = self else { return }
             DispatchQueue.main.async {
-                guard self.isPlaying, beatIndex == self.scheduledBeatIndex else { return }
+                // Reject stale completions from previous scheduling chains
+                guard self.isPlaying, generation == self.schedulingGeneration else { return }
                 self.currentBeat = beat
-                self.scheduledBeatIndex += 1
+                self.scheduledBeatIndex = beatIndex + 1
                 self.nextBeatHostTime = hostTime + beatHostTicks
                 self.scheduleNextBeat(beatIndex: self.scheduledBeatIndex, hostTime: self.nextBeatHostTime)
             }
@@ -206,6 +212,7 @@ class Metronome: ObservableObject {
         let offsetTicks = AVAudioTime.hostTime(forSeconds: 0.005)
         let startTime = hostTime + offsetTicks
 
+        schedulingGeneration &+= 1
         scheduledBeatIndex = 0
         nextBeatHostTime = startTime
         scheduleNextBeat(beatIndex: 0, hostTime: startTime)
@@ -213,13 +220,13 @@ class Metronome: ObservableObject {
 
     /// Cancels all pending buffers and re-arms players
     private func cancelPendingBuffers() {
+        schedulingGeneration &+= 1 // invalidate in-flight callbacks before firing them
         audioService.downbeatPlayer.stop()
         audioService.beatPlayer.stop()
         audioService.silentPlayer.stop()
         audioService.downbeatPlayer.play()
         audioService.beatPlayer.play()
         audioService.silentPlayer.play()
-        scheduledBeatIndex = Int.max // invalidate any in-flight callbacks
     }
 
     /// Reschedules from the next beat at the current tempo

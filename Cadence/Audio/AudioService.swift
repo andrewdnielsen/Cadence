@@ -171,18 +171,17 @@ class AudioService: ObservableObject {
             let file = try AVAudioFile(forReading: url)
             let outputFormat = engine.mainMixerNode.outputFormat(forBus: 0)
 
-            // Convert to engine's output format if needed
-            guard let buffer = AVAudioPCMBuffer(
-                pcmFormat: outputFormat,
-                frameCapacity: AVAudioFrameCount(file.length)
-            ) else {
-                print("AudioService: Could not create buffer for \(name).wav")
-                return nil
-            }
-
             // If formats match, read directly; otherwise use a converter
             if file.processingFormat == outputFormat {
+                guard let buffer = AVAudioPCMBuffer(
+                    pcmFormat: outputFormat,
+                    frameCapacity: AVAudioFrameCount(file.length)
+                ) else {
+                    print("AudioService: Could not create buffer for \(name).wav")
+                    return nil
+                }
                 try file.read(into: buffer)
+                return buffer
             } else {
                 let sourceBuffer = AVAudioPCMBuffer(
                     pcmFormat: file.processingFormat,
@@ -195,8 +194,26 @@ class AudioService: ObservableObject {
                     return nil
                 }
 
+                // Calculate output frame count based on sample rate ratio
+                let sampleRateRatio = outputFormat.sampleRate / file.processingFormat.sampleRate
+                let outputFrameCount = AVAudioFrameCount(Double(file.length) * sampleRateRatio)
+
+                guard let buffer = AVAudioPCMBuffer(
+                    pcmFormat: outputFormat,
+                    frameCapacity: outputFrameCount
+                ) else {
+                    print("AudioService: Could not create buffer for \(name).wav")
+                    return nil
+                }
+
                 var conversionError: NSError?
+                var inputConsumed = false
                 converter.convert(to: buffer, error: &conversionError) { _, outStatus in
+                    if inputConsumed {
+                        outStatus.pointee = .endOfStream
+                        return nil
+                    }
+                    inputConsumed = true
                     outStatus.pointee = .haveData
                     return sourceBuffer
                 }
@@ -205,9 +222,9 @@ class AudioService: ObservableObject {
                     print("AudioService: Conversion error for \(name).wav: \(error)")
                     return nil
                 }
-            }
 
-            return buffer
+                return buffer
+            }
         } catch {
             print("AudioService: Error loading \(name).wav: \(error)")
             return nil
