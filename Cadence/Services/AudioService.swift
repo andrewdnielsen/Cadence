@@ -24,6 +24,7 @@ class AudioService: ObservableObject {
     // Pre-loaded PCM buffers
     private(set) var downbeatBuffer: AVAudioPCMBuffer!
     private(set) var beatBuffer: AVAudioPCMBuffer!
+    private(set) var subdivisionBuffer: AVAudioPCMBuffer!
     private(set) var silentBuffer: AVAudioPCMBuffer!
 
     // MARK: - Tuner / Pitch Detection
@@ -147,6 +148,11 @@ class AudioService: ObservableObject {
         downbeatBuffer = trimBufferAtLoad(downbeatBuffer, maxDuration: maxClickDuration)
         beatBuffer = trimBufferAtLoad(beatBuffer, maxDuration: maxClickDuration)
 
+        // Create subdivision buffer as an attenuated copy of the beat buffer (~40% amplitude)
+        if let beat = beatBuffer {
+            subdivisionBuffer = attenuateBuffer(beat, gain: 0.40)
+        }
+
         // Create silent buffer matching click duration for muted-beat timing
         if let refBuffer = downbeatBuffer {
             let silentBuf = AVAudioPCMBuffer(
@@ -157,6 +163,20 @@ class AudioService: ObservableObject {
             // Buffer is already zeroed by default
             silentBuffer = silentBuf
         }
+    }
+
+    /// Returns a new buffer with all samples multiplied by `gain`. Uses Accelerate for efficiency.
+    private func attenuateBuffer(_ buffer: AVAudioPCMBuffer, gain: Float) -> AVAudioPCMBuffer? {
+        guard let attenuated = AVAudioPCMBuffer(pcmFormat: buffer.format, frameCapacity: buffer.frameLength) else { return nil }
+        attenuated.frameLength = buffer.frameLength
+
+        let channelCount = Int(buffer.format.channelCount)
+        if let src = buffer.floatChannelData, let dst = attenuated.floatChannelData {
+            for ch in 0..<channelCount {
+                vDSP_vsmul(src[ch], 1, [gain], dst[ch], 1, vDSP_Length(buffer.frameLength))
+            }
+        }
+        return attenuated
     }
 
     /// Trims a buffer to maxDuration seconds. Returns the original if already short enough.
