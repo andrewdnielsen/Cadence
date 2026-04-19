@@ -74,7 +74,7 @@ struct BeatTile: View {
                     }
                 }
         )
-        .animation(Theme.Animation.smoothSpring, value: isCurrent)
+        .animation(.none, value: isCurrent)
         .animation(.easeInOut(duration: 0.2), value: isEnabled)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(isEnabled ? "Enabled" : "Disabled")

@@ -289,6 +289,18 @@ class AudioService: ObservableObject {
             name: AVAudioSession.interruptionNotification,
             object: nil
         )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleMediaServicesWereReset),
+            name: AVAudioSession.mediaServicesWereResetNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleWillEnterForeground),
+            name: UIApplication.willEnterForegroundNotification,
+            object: nil
+        )
     }
 
     @objc private func handleRouteChange(notification: Notification) {
@@ -296,6 +308,7 @@ class AudioService: ObservableObject {
         // Only restart if the engine stopped unexpectedly.
         if !engine.isRunning {
             do {
+                try AVAudioSession.sharedInstance().setActive(true)
                 try engine.start()
                 clickPlayer.play()
             } catch {
@@ -346,6 +359,36 @@ class AudioService: ObservableObject {
 
         @unknown default:
             break
+        }
+    }
+
+    @objc private func handleMediaServicesWereReset(notification: Notification) {
+        // Media server was killed by the OS — entire audio graph is destroyed.
+        // Must rebuild everything from scratch.
+        inputTapInstalled = false
+        configureSession()
+        loadClickBuffers()
+        configureGraph()
+        startEngine()
+
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if self.isMetronomePlaying?() == true {
+                self.onInterruptionResume?()
+            }
+        }
+    }
+
+    @objc private func handleWillEnterForeground(notification: Notification) {
+        // Fallback for cases where interruption .ended was never delivered
+        if !engine.isRunning {
+            do {
+                try AVAudioSession.sharedInstance().setActive(true)
+                try engine.start()
+                clickPlayer.play()
+            } catch {
+                print("AudioService: Failed to restart engine on foreground entry: \(error)")
+            }
         }
     }
 

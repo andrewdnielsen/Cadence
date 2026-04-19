@@ -112,7 +112,16 @@ class Metronome: ObservableObject {
     /// Sets the Rive view model for animation control
     func setRiveViewModel(_ viewModel: RiveViewModel) {
         self.riveViewModel = viewModel
-        guard let riveFile = viewModel.riveModel?.riveFile,
+        rebindRiveInstance()
+
+        self.riveViewModel?.pause()
+        updateAnimationSpeed()
+    }
+
+    /// Re-establishes the Rive data binding for the metStick view model instance.
+    /// Must be called after any operation that invalidates bindings (e.g., reset()).
+    private func rebindRiveInstance() {
+        guard let riveFile = riveViewModel?.riveModel?.riveFile,
               let metStickViewModel = riveFile.viewModelNamed("metStick"),
               let instance = metStickViewModel.createDefaultInstance()
         else {
@@ -120,11 +129,8 @@ class Metronome: ObservableObject {
             return
         }
 
-        viewModel.riveModel?.stateMachine?.bind(viewModelInstance: instance)
+        riveViewModel?.riveModel?.stateMachine?.bind(viewModelInstance: instance)
         self.metStickInstance = instance
-
-        self.riveViewModel?.pause()
-        updateAnimationSpeed()
     }
 
     /// Updates the animation speed based on current tempo
@@ -241,10 +247,13 @@ class Metronome: ObservableObject {
         cancelPendingBuffers()
         isPlaying = false
         currentBeat = 0
+
+        // Reset animation to rest position and re-establish data binding
+        // (reset() invalidates bindings by recreating the state machine internally)
+        riveViewModel?.reset()
+        rebindRiveInstance()
         riveViewModel?.pause()
         updateAnimationSpeed()
-
-        // TODO: Add Rive state machine trigger to snap metronome stick to center on stop
     }
 
     /// Toggles the metronome playback state.
