@@ -2,7 +2,6 @@
 //  Tuner.swift
 //  Cadence
 //
-//  Created by Claude Code on 2025-12-21.
 //  Rewritten to use vendored YIN algorithm via AudioService's always-on input tap.
 //
 
