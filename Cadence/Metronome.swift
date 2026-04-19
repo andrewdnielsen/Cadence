@@ -37,6 +37,9 @@ class Metronome: ObservableObject {
     /// The instance for data-binding to the metronome stick's properties.
     private var metStickInstance: RiveDataBindingViewModel.Instance?
 
+    /// Cached reference to the Rive speed property to avoid per-frame path lookups.
+    private var cachedSpeedProperty: RiveDataBindingViewModel.Instance.NumberProperty?
+
     private let animationBaseBPM: Double = 120
 
     // MARK: - Scheduling State
@@ -131,15 +134,13 @@ class Metronome: ObservableObject {
 
         riveViewModel?.riveModel?.stateMachine?.bind(viewModelInstance: instance)
         self.metStickInstance = instance
+        self.cachedSpeedProperty = instance.numberProperty(fromPath: "speed")
     }
 
     /// Updates the animation speed based on current tempo
     private func updateAnimationSpeed() {
-        guard let speedProperty = metStickInstance?.numberProperty(fromPath: "speed") else {
-            return
-        }
-        let speedMultiplier = Float(tempo) / Float(animationBaseBPM)
-        speedProperty.value = speedMultiplier
+        guard let cachedSpeedProperty else { return }
+        cachedSpeedProperty.value = Float(tempo) / Float(animationBaseBPM)
     }
 
     // MARK: - Scheduling
@@ -180,11 +181,20 @@ class Metronome: ObservableObject {
             sourceBuffer = audioService.silentBuffer
         }
 
+        // Schedule the UI update proactively at the exact audio play time,
+        // rather than reactively from the .dataConsumed callback.
+        let beatTimeSeconds = AVAudioTime.seconds(forHostTime: hostTime)
+        let beatTimeNanos = UInt64(beatTimeSeconds * 1_000_000_000)
+        let deadline = DispatchTime(uptimeNanoseconds: beatTimeNanos)
+        DispatchQueue.main.asyncAfter(deadline: deadline) { [weak self] in
+            guard let self = self, self.isPlaying, generation == self.schedulingGeneration else { return }
+            self.currentBeat = beat
+        }
+
         audioService.clickPlayer.scheduleBuffer(sourceBuffer, at: time, completionCallbackType: .dataConsumed) { [weak self] _ in
             guard let self = self else { return }
             DispatchQueue.main.async {
                 guard self.isPlaying, generation == self.schedulingGeneration else { return }
-                self.currentBeat = beat
 
                 // Compute next beat timing using current tempo (not captured),
                 // so slider changes take effect on the very next beat.
@@ -280,5 +290,6 @@ class Metronome: ObservableObject {
         stop()
         riveViewModel = nil
         metStickInstance = nil
+        cachedSpeedProperty = nil
     }
 }
