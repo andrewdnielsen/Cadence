@@ -45,7 +45,7 @@ class Metronome: ObservableObject {
     // MARK: - Scheduling State
 
     /// Number of beats to pre-schedule ahead
-    private let lookAheadCount = 1
+    private let lookAheadCount = 2
 
     /// Monotonically increasing generation counter — each new scheduling chain
     /// gets a unique generation so stale completion handlers are always rejected.
@@ -72,6 +72,7 @@ class Metronome: ObservableObject {
     /// The time signature for the metronome's beat pattern.
     @Published var timeSignature: TimeSignature = TimeSignature() {
         didSet {
+            currentBeat = 0
             resetBeats()
 
             if isPlaying {
@@ -161,10 +162,10 @@ class Metronome: ObservableObject {
         return mach_absolute_time()
     }
 
-    /// Schedules a single beat and chains to the next via completion callback.
-    /// The callback reads `self.tempo` at invocation time, so tempo changes from
-    /// the slider are picked up automatically without restarting the chain.
-    private func scheduleNextBeat(beatIndex: Int, hostTime: UInt64, generation: UInt) {
+    /// Schedules a single beat. When `chain` is true, attaches a completion
+    /// callback that schedules the next beat — only the last beat in a
+    /// look-ahead batch should chain, to avoid spawning parallel scheduling loops.
+    private func scheduleNextBeat(beatIndex: Int, hostTime: UInt64, generation: UInt, chain: Bool = true) {
         guard isPlaying, generation == schedulingGeneration else { return }
 
         let beat = beatIndex % timeSignature.beats
@@ -191,22 +192,26 @@ class Metronome: ObservableObject {
             self.currentBeat = beat
         }
 
-        audioService.clickPlayer.scheduleBuffer(sourceBuffer, at: time, completionCallbackType: .dataConsumed) { [weak self] _ in
-            guard let self = self else { return }
-            DispatchQueue.main.async {
-                guard self.isPlaying, generation == self.schedulingGeneration else { return }
+        if chain {
+            audioService.clickPlayer.scheduleBuffer(sourceBuffer, at: time, completionCallbackType: .dataConsumed) { [weak self] _ in
+                guard let self = self else { return }
+                DispatchQueue.main.async {
+                    guard self.isPlaying, generation == self.schedulingGeneration else { return }
 
-                // Compute next beat timing using current tempo (not captured),
-                // so slider changes take effect on the very next beat.
-                let beatDuration = 60.0 / self.tempo
-                let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
-                let nextHostTime = hostTime + beatHostTicks
-                let nextIndex = beatIndex + 1
+                    // Compute next beat timing using current tempo (not captured),
+                    // so slider changes take effect on the very next beat.
+                    let beatDuration = 60.0 / self.tempo
+                    let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
+                    let nextHostTime = hostTime + beatHostTicks
+                    let nextIndex = beatIndex + 1
 
-                self.scheduledBeatIndex = nextIndex
-                self.nextBeatHostTime = nextHostTime
-                self.scheduleNextBeat(beatIndex: nextIndex, hostTime: nextHostTime, generation: generation)
+                    self.scheduledBeatIndex = nextIndex
+                    self.nextBeatHostTime = nextHostTime
+                    self.scheduleNextBeat(beatIndex: nextIndex, hostTime: nextHostTime, generation: generation)
+                }
             }
+        } else {
+            audioService.clickPlayer.scheduleBuffer(sourceBuffer, at: time)
         }
     }
 
@@ -221,11 +226,14 @@ class Metronome: ObservableObject {
         let beatDuration = 60.0 / tempo
         let beatHostTicks = AVAudioTime.hostTime(forSeconds: beatDuration)
 
-        // Pre-schedule multiple beats to fill the look-ahead pipeline
+        // Pre-schedule multiple beats to fill the look-ahead pipeline.
+        // Only the last beat chains via its completion callback to avoid
+        // spawning parallel scheduling loops.
         var beatIndex = 0
         var beatTime = startTime
-        for _ in 0..<lookAheadCount {
-            scheduleNextBeat(beatIndex: beatIndex, hostTime: beatTime, generation: generation)
+        for i in 0..<lookAheadCount {
+            let isLast = (i == lookAheadCount - 1)
+            scheduleNextBeat(beatIndex: beatIndex, hostTime: beatTime, generation: generation, chain: isLast)
             beatIndex += 1
             beatTime += beatHostTicks
         }

@@ -50,7 +50,7 @@ struct YINPitchDetector {
         // Find the first dip below threshold
         let tau = absoluteThreshold(yinBuffer: diffBuffer, withThreshold: threshold)
 
-        guard tau != 0 else { return nil }
+        guard tau > 0 else { return nil }
 
         // Refine with parabolic interpolation
         let interpolatedTau = parabolicInterpolation(yinBuffer: diffBuffer, tau: tau)

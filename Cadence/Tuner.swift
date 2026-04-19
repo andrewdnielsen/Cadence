@@ -50,13 +50,13 @@ class Tuner: ObservableObject {
 
     // Signal stability validation
     private var recentFrequencies: [Double] = []
-    private let stabilityWindowSize = 1
+    private let stabilityWindowSize = 3
     private let stabilityThreshold: Double = 8.0
 
     // Amplitude stability validation
     private var recentAmplitudes: [Float] = []
-    private let amplitudeWindowSize = 1
-    private let maxAmplitudeVariance: Float = 0.4
+    private let amplitudeWindowSize = 3
+    private let maxAmplitudeVarianceDB: Float = 6.0
 
     // Minimum sustained duration
     private var signalStartTime: Date?
@@ -157,10 +157,9 @@ class Tuner: ObservableObject {
         }
 
         let avgAmplitude = recentAmplitudes.reduce(0, +) / Float(recentAmplitudes.count)
-        let amplitudeVariances = recentAmplitudes.map { abs($0 - avgAmplitude) / max(avgAmplitude, 0.0001) }
-        let maxVariance = amplitudeVariances.max() ?? 1.0
+        let maxVariance = recentAmplitudes.map { abs($0 - avgAmplitude) }.max() ?? 1.0
 
-        guard maxVariance < maxAmplitudeVariance else {
+        guard maxVariance < maxAmplitudeVarianceDB else {
             isSignalActive = false
             signalStartTime = nil
             isLockedOnNote = false

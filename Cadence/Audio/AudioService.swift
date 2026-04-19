@@ -99,6 +99,7 @@ class AudioService: ObservableObject {
         let inputNode = engine.inputNode
         let inputFormat = inputNode.outputFormat(forBus: 0)
 
+        inputNode.removeTap(onBus: 0)
         inputNode.installTap(onBus: 0, bufferSize: bufferSize, format: inputFormat) { [weak self] buffer, _ in
             guard let self = self else { return }
 
