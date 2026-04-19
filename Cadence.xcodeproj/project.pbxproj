@@ -9,6 +9,7 @@
 /* Begin PBXBuildFile section */
 		495603BB2E1A3DD600A8BF73 /* AudioKitEX in Frameworks */ = {isa = PBXBuildFile; productRef = 495603BA2E1A3DD600A8BF73 /* AudioKitEX */; };
 		495AAF1E2E1746A200EAF075 /* AudioKit in Frameworks */ = {isa = PBXBuildFile; productRef = 495AAF1D2E1746A200EAF075 /* AudioKit */; };
+		49AB80C92F21DBDB002F5B01 /* Tuna in Frameworks */ = {isa = PBXBuildFile; productRef = 49AB80C82F21DBDB002F5B01 /* Tuna */; };
 		49C43DB52E1B2297008472F7 /* AudioKitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 49C43DB42E1B2297008472F7 /* AudioKitUI */; };
 		49D749782E57C81C00048B2C /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 49D749772E57C81C00048B2C /* RiveRuntime */; };
 /* End PBXBuildFile section */
@@ -46,6 +47,7 @@
 				495AAF1E2E1746A200EAF075 /* AudioKit in Frameworks */,
 				49D749782E57C81C00048B2C /* RiveRuntime in Frameworks */,
 				49C43DB52E1B2297008472F7 /* AudioKitUI in Frameworks */,
+				49AB80C92F21DBDB002F5B01 /* Tuna in Frameworks */,
 				495603BB2E1A3DD600A8BF73 /* AudioKitEX in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -93,6 +95,7 @@
 				495603BA2E1A3DD600A8BF73 /* AudioKitEX */,
 				49C43DB42E1B2297008472F7 /* AudioKitUI */,
 				49D749772E57C81C00048B2C /* RiveRuntime */,
+				49AB80C82F21DBDB002F5B01 /* Tuna */,
 			);
 			productName = Cadence;
 			productReference = 495AAF0C2E173EED00EAF075 /* Cadence.app */;
@@ -127,6 +130,7 @@
 				495603B92E1A3DD600A8BF73 /* XCRemoteSwiftPackageReference "AudioKitEX" */,
 				49C43DB32E1B2297008472F7 /* XCRemoteSwiftPackageReference "AudioKitUI" */,
 				49D749762E57C81C00048B2C /* XCRemoteSwiftPackageReference "rive-ios" */,
+				49AB80C72F21DBDB002F5B01 /* XCRemoteSwiftPackageReference "Tuna" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 495AAF0D2E173EED00EAF075 /* Products */;
@@ -380,6 +384,14 @@
 				minimumVersion = 5.6.5;
 			};
 		};
+		49AB80C72F21DBDB002F5B01 /* XCRemoteSwiftPackageReference "Tuna" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/alladinian/Tuna.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.9.1;
+			};
+		};
 		49C43DB32E1B2297008472F7 /* XCRemoteSwiftPackageReference "AudioKitUI" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/AudioKit/AudioKitUI.git";
@@ -408,6 +420,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 495AAF1C2E1746A200EAF075 /* XCRemoteSwiftPackageReference "AudioKit" */;
 			productName = AudioKit;
+		};
+		49AB80C82F21DBDB002F5B01 /* Tuna */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 49AB80C72F21DBDB002F5B01 /* XCRemoteSwiftPackageReference "Tuna" */;
+			productName = Tuna;
 		};
 		49C43DB42E1B2297008472F7 /* AudioKitUI */ = {
 			isa = XCSwiftPackageProductDependency;

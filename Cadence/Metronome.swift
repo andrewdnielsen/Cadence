@@ -316,6 +316,9 @@ class Metronome: ObservableObject, HasAudioEngine {
         sequencer.rewind()
         currentBeat = 0
 
+        // Keep audio engine running to prevent sampler corruption
+        // Engine will be stopped when ContentView disappears
+
         riveViewModel?.reset()
 
         if let vm = riveViewModel {
