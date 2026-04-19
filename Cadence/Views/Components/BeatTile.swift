@@ -74,7 +74,7 @@ struct BeatTile: View {
                     }
                 }
         )
-        .animation(Theme.Animation.smoothSpring, value: isCurrent)
+        .animation(.none, value: isCurrent)
         .animation(.easeInOut(duration: 0.2), value: isEnabled)
         .accessibilityLabel(accessibilityLabel)
         .accessibilityValue(isEnabled ? "Enabled" : "Disabled")
@@ -98,7 +98,7 @@ struct BeatTile: View {
         if !isEnabled {
             return Theme.Colors.surface
         }
-        return isDownbeat ? Theme.Colors.primary : Color.gray.opacity(0.3)
+        return isDownbeat ? Theme.Colors.downbeat : Theme.Colors.textSecondary.opacity(0.2)
     }
 
     /// The border color when current beat is playing

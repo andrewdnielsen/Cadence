@@ -1,6 +1,4 @@
 import SwiftUI
-import AudioKit
-import AudioKitUI
 import RiveRuntime
 
 struct ContentView: View {
@@ -8,7 +6,64 @@ struct ContentView: View {
     @StateObject var tuner = Tuner()
 
     @State private var riveViewModel = RiveViewModel(fileName: "test", autoPlay: false)
-    @State private var currentTab = 0
+
+    init() {
+        configureTabBarAppearance()
+    }
+
+    var body: some View {
+        TabView {
+            MetronomeTab(metronome: metronome, riveViewModel: riveViewModel)
+                .tabItem {
+                    Label("Metronome", systemImage: "metronome")
+                }
+
+            TunerTab(tuner: tuner)
+                .tabItem {
+                    Label("Tuner", systemImage: "tuningfork")
+                }
+        }
+        .onAppear {
+            metronome.setRiveViewModel(riveViewModel)
+        }
+        .onDisappear {
+            metronome.stop()
+            tuner.isListening = false
+            metronome.riveViewModel = nil
+        }
+    }
+}
+
+// MARK: - Tab Bar Appearance
+
+private func configureTabBarAppearance() {
+    let appearance = UITabBarAppearance()
+    appearance.configureWithOpaqueBackground()
+    appearance.backgroundColor = UIColor(Theme.Colors.background)
+
+    let normalAttrs: [NSAttributedString.Key: Any] = [
+        .foregroundColor: UIColor(Theme.Colors.textSecondary)
+    ]
+    let selectedAttrs: [NSAttributedString.Key: Any] = [
+        .foregroundColor: UIColor(Theme.Colors.primary)
+    ]
+
+    appearance.stackedLayoutAppearance.normal.iconColor = UIColor(Theme.Colors.textSecondary)
+    appearance.stackedLayoutAppearance.normal.titleTextAttributes = normalAttrs
+    appearance.stackedLayoutAppearance.selected.iconColor = UIColor(Theme.Colors.primary)
+    appearance.stackedLayoutAppearance.selected.titleTextAttributes = selectedAttrs
+
+    UITabBar.appearance().standardAppearance = appearance
+    UITabBar.appearance().scrollEdgeAppearance = appearance
+}
+
+// MARK: - Metronome Tab
+
+private struct MetronomeTab: View {
+    @ObservedObject var metronome: Metronome
+    let riveViewModel: RiveViewModel
+
+    @State private var currentPage = 0
 
     var body: some View {
         GeometryReader { geometry in
@@ -22,13 +77,11 @@ struct ContentView: View {
 
                     let tabViewHeight = min(max(geometry.size.height * 0.55, 350), 520)
 
-                    TabView(selection: $currentTab) {
-                        // Basic metronome visualizer (page 0)
+                    TabView(selection: $currentPage) {
                         BasicMetronomeView(metronome: metronome, riveViewModel: riveViewModel)
                             .tag(0)
                             .accessibilityLabel("Basic view page")
 
-                        // Advanced metronome view (page 1)
                         AdvancedMetronomeView(
                             metronome: metronome,
                             availableWidth: geometry.size.width * 0.85,
@@ -36,16 +89,11 @@ struct ContentView: View {
                         )
                         .tag(1)
                         .accessibilityLabel("Advanced view page")
-
-                        // Tuner view (page 2)
-                        BasicTunerView(tuner: tuner)
-                            .tag(2)
-                            .accessibilityLabel("Tuner page")
                     }
                     .frame(height: tabViewHeight)
                     .tabViewStyle(.page)
                     .indexViewStyle(.page(backgroundDisplayMode: .always))
-                    .animation(.easeInOut(duration: 0.3), value: currentTab)
+                    .animation(.easeInOut(duration: 0.3), value: currentPage)
 
                     Spacer()
                         .frame(height: Theme.Spacing.md)
@@ -61,19 +109,26 @@ struct ContentView: View {
                 }
             }
             .ignoresSafeArea(.keyboard)
-            .onAppear {
-                metronome.setRiveViewModel(riveViewModel)
-            }
-            .onDisappear {
-                metronome.stop()
-                tuner.stop()
-
-                // Clear Rive view model reference to prevent memory leaks
-                metronome.riveViewModel = nil
-            }
         }
     }
 }
+
+// MARK: - Tuner Tab
+
+private struct TunerTab: View {
+    @ObservedObject var tuner: Tuner
+
+    var body: some View {
+        ZStack {
+            Theme.Colors.background
+                .ignoresSafeArea()
+
+            BasicTunerView(tuner: tuner)
+        }
+    }
+}
+
+// MARK: - Preview
 
 #Preview {
     ContentView()

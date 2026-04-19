@@ -25,9 +25,6 @@ struct BasicMetronomeView: View {
                         riveViewModel.pause()
                     }
                 }
-                .onDisappear {
-                    riveViewModel.pause()
-                }
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel("Metronome visualization")
