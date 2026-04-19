@@ -182,11 +182,13 @@ class Metronome: ObservableObject {
             sourceBuffer = audioService.silentBuffer
         }
 
-        // Schedule the UI update proactively at the exact audio play time,
-        // rather than reactively from the .dataConsumed callback.
-        let beatTimeSeconds = AVAudioTime.seconds(forHostTime: hostTime)
-        let beatTimeNanos = UInt64(beatTimeSeconds * 1_000_000_000)
-        let deadline = DispatchTime(uptimeNanoseconds: beatTimeNanos)
+        // Schedule the UI update proactively at the exact audio play time.
+        // Compute as an offset from now rather than converting the absolute
+        // host time, since the audio host clock and DispatchTime may not
+        // share the same epoch.
+        let nowHostTime = mach_absolute_time()
+        let deltaSeconds = AVAudioTime.seconds(forHostTime: hostTime) - AVAudioTime.seconds(forHostTime: nowHostTime)
+        let deadline = DispatchTime.now() + max(deltaSeconds, 0)
         DispatchQueue.main.asyncAfter(deadline: deadline) { [weak self] in
             guard let self = self, self.isPlaying, generation == self.schedulingGeneration else { return }
             self.currentBeat = beat
