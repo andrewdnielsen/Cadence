@@ -9,11 +9,12 @@ import SwiftUI
 
 @main
 struct CadenceApp: App {
+    @StateObject private var metronome = Metronome()
     @StateObject private var audioService = AudioService.shared
 
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            ContentView(metronome: metronome)
                 .environmentObject(audioService)
         }
     }

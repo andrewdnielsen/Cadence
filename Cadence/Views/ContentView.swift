@@ -6,12 +6,9 @@
 import SwiftUI
 
 struct ContentView: View {
+    @ObservedObject var metronome: Metronome
+
     var body: some View {
-        ZStack {
-            Color("BackgroundColor")
-                .ignoresSafeArea()
-            Text("Cadence")
-                .foregroundColor(.white)
-        }
+        MetronomeView(metronome: metronome)
     }
 }

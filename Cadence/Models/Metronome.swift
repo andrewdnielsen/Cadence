@@ -154,7 +154,11 @@ class Metronome: ObservableObject {
     /// Tempo in BPM. Valid range: 20–300. Clamped on set.
     @Published var tempo: Double = 120 {
         didSet {
-            tempo = min(max(tempo, 20), 300)
+            let clamped = min(max(tempo, 20), 300)
+            if clamped != tempo {
+                tempo = clamped  // one recursive call, which exits cleanly since value is now in range
+                return
+            }
             updateAnimationSpeed()
         }
     }
