@@ -54,10 +54,10 @@ struct SolidButtonStyle: ButtonStyle {
         configuration.label
             .frame(maxWidth: .infinity)
             .frame(height: Theme.Sizes.buttonHeightLarge)
-            .background(Theme.Colors.primary)
+            .background(Theme.Colors.accentActive)
             .cornerRadius(Theme.CornerRadius.circle)
             .shadow(
-                color: Theme.Colors.primary.opacity(0.4),
+                color: Theme.Colors.accentActive.opacity(0.4),
                 radius: Theme.Shadow.large.radius,
                 x: Theme.Shadow.large.x,
                 y: Theme.Shadow.large.y

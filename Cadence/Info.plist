@@ -2,11 +2,18 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>audio</string>
-	</array>
-	<key>NSMicrophoneUsageDescription</key>
-	<string>Cadence needs access to your microphone to detect the pitch of your instrument for the tuner feature.</string>
+    <key>UIBackgroundModes</key>
+    <array>
+        <string>audio</string>
+    </array>
+    <key>NSMicrophoneUsageDescription</key>
+    <string>Cadence needs access to your microphone to detect the pitch of your instrument for the tuner feature.</string>
+    <key>UIAppFonts</key>
+    <array>
+        <string>IBMPlexMono-Bold.ttf</string>
+        <string>IBMPlexMono-Regular.ttf</string>
+        <string>IBMPlexSans-Medium.ttf</string>
+        <string>IBMPlexSans-Regular.ttf</string>
+    </array>
 </dict>
 </plist>
