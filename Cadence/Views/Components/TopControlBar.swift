@@ -47,7 +47,7 @@ struct TopControlBar: View {
                 }
             } label: {
                 Text("\(timeSignature.beats)")
-                    .font(Theme.Typography.monoDisplay(28))
+                    .font(Theme.Typography.monoDisplay(Theme.Typography.displaySmall))
                     .foregroundColor(Theme.Colors.textPrimary)
                     .frame(minWidth: 40)
                     .contentShape(Rectangle())
@@ -71,13 +71,14 @@ struct TopControlBar: View {
                 }
             } label: {
                 Text("\(timeSignature.noteValue)")
-                    .font(Theme.Typography.monoDisplay(28))
+                    .font(Theme.Typography.monoDisplay(Theme.Typography.displaySmall))
                     .foregroundColor(Theme.Colors.textPrimary)
                     .frame(minWidth: 40)
                     .contentShape(Rectangle())
             }
             .accessibilityLabel("Note value: \(timeSignature.noteValue)")
         }
+        .frame(width: 80)
     }
 
     // MARK: - Divider
@@ -96,21 +97,17 @@ struct TopControlBar: View {
             showingSubdivisionSheet = true
         } label: {
             HStack(spacing: Theme.Spacing.sm) {
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(subdivision.label)
-                        .font(Theme.Typography.monoLabel(17))
-                        .foregroundColor(
-                            isPlaying
-                                ? Theme.Colors.accentActive
-                                : Theme.Colors.textPrimary
-                        )
+                RhythmPatternView(
+                    subdivision: subdivision,
+                    color: isPlaying ? Theme.Colors.accentActive : Theme.Colors.textPrimary
+                )
+                .frame(height: 22)
 
-                    Text(subdivision.fullName)
-                        .font(Theme.Typography.sansRegular(Theme.Typography.small))
-                        .foregroundColor(Theme.Colors.textSecondary)
-                }
+                Text(subdivision.fullName)
+                    .font(Theme.Typography.sansMedium(Theme.Typography.body))
+                    .foregroundColor(isPlaying ? Theme.Colors.accentActive : Theme.Colors.textPrimary)
 
-                Spacer(minLength: 0)
+                Spacer(minLength: Theme.Spacing.sm)
 
                 Image(systemName: "chevron.up.chevron.down")
                     .font(.system(size: 11, weight: .medium))

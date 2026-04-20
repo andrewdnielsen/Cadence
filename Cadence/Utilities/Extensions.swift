@@ -29,10 +29,6 @@ extension View {
         self.buttonStyle(PressableScaleButtonStyle())
     }
 
-    /// Adds a glow effect with the specified color
-    func glowEffect(color: Color, radius: CGFloat = 10) -> some View {
-        self.shadow(color: color.opacity(0.6), radius: radius, x: 0, y: 0)
-    }
 }
 
 // MARK: - Button Styles
@@ -43,26 +39,5 @@ struct PressableScaleButtonStyle: ButtonStyle {
         configuration.label
             .scaleEffect(configuration.isPressed ? 0.95 : 1.0)
             .animation(Theme.Animation.smoothSpring, value: configuration.isPressed)
-    }
-}
-
-/// Custom solid button style with primary color
-struct SolidButtonStyle: ButtonStyle {
-    var isActive: Bool = false
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .frame(maxWidth: .infinity)
-            .frame(height: Theme.Sizes.buttonHeightLarge)
-            .background(Theme.Colors.accentActive)
-            .cornerRadius(Theme.CornerRadius.circle)
-            .shadow(
-                color: Theme.Colors.accentActive.opacity(0.4),
-                radius: Theme.Shadow.large.radius,
-                x: Theme.Shadow.large.x,
-                y: Theme.Shadow.large.y
-            )
-            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
-            .animation(Theme.Animation.spring, value: configuration.isPressed)
     }
 }

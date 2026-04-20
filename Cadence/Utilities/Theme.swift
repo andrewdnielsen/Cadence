@@ -45,20 +45,21 @@ struct Theme {
         // Backgrounds
         /// App background
         static let background    = Color(lightHex: "F5F0E8", darkHex: "111009")
-        /// Cards, panels
-        static let surface       = Color(lightHex: "EDE8E0", darkHex: "1C1A17")
-        /// Elevated elements, modals
-        static let surfaceRaised = Color(lightHex: "E5DFD6", darkHex: "262320")
+        /// Cards, panels — L* 13 in dark mode (ΔL* 11 above background)
+        static let surface       = Color(lightHex: "EDE8E0", darkHex: "2A2623")
+        /// Elevated elements, modals — L* 20 in dark mode (ΔL* 7 above surface)
+        static let surfaceRaised = Color(lightHex: "E5DFD6", darkHex: "383330")
 
         // Text
         /// Primary labels, BPM display
         static let textPrimary   = Color(lightHex: "1A1612", darkHex: "F2EDE4")
         /// Sub-labels, captions
         static let textSecondary = Color(lightHex: "6B6560", darkHex: "8C8680")
-        /// Inactive / disabled text
-        static let textTertiary  = Color(lightHex: "9A9590", darkHex: "5C5752")
+        /// Inactive / disabled text — passes 3:1 large-text contrast in both modes
+        static let textTertiary  = Color(lightHex: "7A7570", darkHex: "686360")
 
-        // Accent — Blued Steel
+        // Accent — Blued Steel (active theme)
+        // Future themes: Copper/Ember (accentActive #B8614A), Muted Sage/Olive (accentActive #7E9A5A)
         /// Idle controls, inactive beat indicators, borders
         static let accentResting   = Color(lightHex: "4A6070", darkHex: "475E6E")
         /// Playing state — active controls, beat pulse, BPM highlight
@@ -72,7 +73,8 @@ struct Theme {
 
         // Semantic
         static let success = Color(lightHex: "3D7A57", darkHex: "5A9A72")
-        static let warning = Color(lightHex: "B87020", darkHex: "C4882A")
+        /// Red-orange (~14° hue) — distinct from tuner arc's amber (~33°) to avoid semantic collision
+        static let warning = Color(lightHex: "B87020", darkHex: "C96040")
         static let error   = Color(lightHex: "9E3F30", darkHex: "B85548")
 
         // Tuner string visualizer arc (dark mode hero moment)
@@ -101,10 +103,10 @@ struct Theme {
             Font.custom("IBMPlexSans-Regular", size: size)
         }
 
-        // Size scale
-        static let displayHuge: CGFloat   = 72  // BPM number
-        static let displayLarge: CGFloat  = 48
-        static let displayMedium: CGFloat = 36
+        // Size scale — ratio 72:24 ≈ 3:1 (display dominates at arm's length)
+        static let displayHuge: CGFloat   = 72  // BPM number — readable without focus
+        static let displayMedium: CGFloat = 36  // Large visualizer labels
+        static let displaySmall: CGFloat  = 28  // Compact bar numerics (time sig)
         static let title: CGFloat         = 24
         static let subtitle: CGFloat      = 20
         static let body: CGFloat          = 16
@@ -142,7 +144,6 @@ struct Theme {
 
         static let spring       = SwiftUI.Animation.spring(response: 0.4, dampingFraction: 0.7, blendDuration: 0)
         static let smoothSpring = SwiftUI.Animation.spring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)
-        static let bouncySpring = SwiftUI.Animation.spring(response: 0.5, dampingFraction: 0.6, blendDuration: 0)
     }
 
     // MARK: - Shadows

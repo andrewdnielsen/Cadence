@@ -53,11 +53,11 @@ struct SubdivisionSheet: View {
             dismiss()
         } label: {
             VStack(spacing: 5) {
-                Text(sub.label)
-                    .font(Theme.Typography.monoDisplay(20))
-                    .foregroundColor(
-                        isSelected ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
-                    )
+                RhythmPatternView(
+                    subdivision: sub,
+                    color: isSelected ? Theme.Colors.textPrimary : Theme.Colors.textSecondary
+                )
+                .frame(height: 36)
 
                 Text(sub.fullName)
                     .font(Theme.Typography.sansRegular(Theme.Typography.small))

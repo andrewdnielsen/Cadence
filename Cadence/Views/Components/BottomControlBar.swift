@@ -59,8 +59,8 @@ struct BottomControlBar: View {
                         .foregroundColor(bpmTextColor)
                         .contentTransition(.numericText())
                         .animation(Theme.Animation.smoothSpring, value: Int(metronome.tempo))
-                        .scaleEffect(tapPulse ? 1.05 : 1.0)
-                        .animation(Theme.Animation.spring, value: tapPulse)
+                        .brightness(tapPulse ? 0.12 : 0)
+                        .animation(.easeOut(duration: 0.08), value: tapPulse)
 
                     Text("BPM")
                         .font(Theme.Typography.sansRegular(Theme.Typography.caption))
